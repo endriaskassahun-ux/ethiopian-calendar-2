@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ethiopian Gregorian Calendar</title>
+<style>
+/* =====================================================================
+   THEME TOKENS
+   Ethiopian flag colours used with intent, on warm neutral tones.
+   Contrast notes (WCAG AA): white on --green 4.5:1, white on --red 5.1:1,
+   white on --blue 8.3:1, --ink on --yellow 11.7:1. Never white on yellow.
+   ===================================================================== */
+:root{
+  /* flag and emblem */
+  --green:#078930; --yellow:#FCDD09; --red:#DA121A; --blue:#0F47AF;
+  /* darker / softer companions for text and tints */
+  --green-ink:#05732A;    /* green text on light backgrounds (6:1) */
+  --green-deep:#06501D;   /* year buttons, strong headers */
+  --green-tint:#E8F5EC;   /* selected day background */
+  --yellow-soft:#FFF4C2;  /* today and hover background */
+  --yellow-deep:#7A5C00;  /* text on yellow tints */
+  --red-deep:#9E0C12;     /* borders around red fills */
+  --red-tint:#FDECEC;
+  --blue-tint:#E7EEFB;
+  /* neutrals */
+  --bg:#FAF7F0;           /* warm off white page */
+  --surface:#FFFFFF;      /* cards */
+  --cream:#FFF9E8;        /* soft panels */
+  --ink:#1F2328;          /* deep charcoal text */
+  --muted:#4A4F55;        /* secondary text (7.7:1 on --bg) */
+  --line:#D6CFBF;         /* hairlines */
+  --line-strong:#8C8576;  /* day cell borders */
+  /* semantic aliases used by the scripts and legend */
+  --nat:var(--red); --natDark:var(--red-deep);
+  --pag:var(--green-ink); --pagBg:var(--green-tint);
+  --today:var(--yellow); --todayBg:var(--yellow-soft);
+  --sel:var(--green); --selBg:var(--green-tint);
+  --eth:var(--green-ink);
+  /* shape and motion */
+  --radius:14px; --radius-sm:9px;
+  --shadow:0 1px 2px rgba(31,35,40,.06),0 4px 14px rgba(31,35,40,.06);
+  --shadow-hover:0 2px 4px rgba(31,35,40,.10),0 8px 20px rgba(31,35,40,.10);
+  --ease:180ms cubic-bezier(.2,.7,.2,1);
+  --font:"Noto Sans Ethiopic","Nyala","Abyssinica SIL","Ebrima","Kefa",system-ui,-apple-system,Roboto,"Segoe UI","DejaVu Sans",Arial,"FreeSerif",sans-serif;
+}
+
+/* ---------- base ---------- */
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:16px;line-height:1.45}
+button{font-family:inherit}
+:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+
+/* thin green / yellow / red stripe, reused in header and footer */
+.tricolor{height:6px;background:linear-gradient(90deg,var(--green) 0 33.33%,var(--yellow) 33.33% 66.66%,var(--red) 66.66% 100%)}
+
+/* ---------- header ---------- */
+header.top{background:var(--ink);color:#fff}
+header.top .inner{max-width:640px;margin:0 auto;padding:12px 14px;display:flex;gap:12px;align-items:center}
+header.top .emblem{flex:0 0 40px;width:40px;height:40px}
+header.top h1{margin:0;font-size:19px;font-weight:700;line-height:1.25}
+header.top p{margin:2px 0 0;font-size:13.5px;color:#E9E6DE}
+
+/* ---------- layout ---------- */
+.wrap{max-width:640px;margin:0 auto;padding:12px 8px 20px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 8px;margin-bottom:14px;box-shadow:var(--shadow)}
+h2{font-size:19px;margin:4px 4px 8px;display:flex;align-items:center;gap:8px}
+h2::before{content:"";width:5px;height:18px;border-radius:3px;background:var(--green)}
+
+/* ---------- month title ---------- */
+.calhead{padding:0 4px 8px}
+.title{font-size:24px;font-weight:700;line-height:1.15}
+.title small{display:block;font-size:18px;font-weight:700;color:var(--green-ink);margin-top:2px}
+.title .sea{display:block;font-size:14px;font-weight:700;color:var(--muted);margin-top:2px}
+
+/* ---------- navigation bar: <<< << < [label] > >> >>> ---------- */
+.navbar{display:grid;gap:6px;margin-top:12px;align-items:center;
+  grid-template-columns:repeat(3,minmax(48px,auto)) 1fr repeat(3,minmax(48px,auto));
+  grid-template-areas:"py pm pd lbl nd nm ny" ". . . td . . .";}
+#prevYear{grid-area:py} #prevMonth{grid-area:pm} #prevDay{grid-area:pd}
+#nextDay{grid-area:nd} #nextMonth{grid-area:nm} #nextYear{grid-area:ny}
+#navLabel{grid-area:lbl} #todayBtn{grid-area:td}
+.nav-btn{min-width:48px;min-height:48px;padding:0 10px;border-radius:var(--radius-sm);border:2px solid transparent;
+  font-size:17px;font-weight:800;letter-spacing:-1px;cursor:pointer;white-space:nowrap;
+  transition:background var(--ease),color var(--ease),box-shadow var(--ease),transform var(--ease),border-color var(--ease)}
+.nav-btn:hover{box-shadow:var(--shadow-hover);transform:translateY(-1px)}
+.nav-btn:active{transform:translateY(1px) scale(.97);box-shadow:none}
+.nav-btn.day{background:var(--surface);color:var(--green-ink);border-color:var(--green)}
+.nav-btn.day:hover{background:var(--yellow-soft)}
+.nav-btn.month{background:var(--green);color:#fff}
+.nav-btn.month:hover{background:var(--green-ink)}
+.nav-btn.year{background:var(--green-deep);color:#fff}
+.nav-btn.year:hover{background:var(--ink)}
+.nav-btn.today{background:var(--yellow);color:var(--ink);border-color:#C9AF00;letter-spacing:0;font-size:16px;justify-self:center;padding:0 18px}
+.nav-btn.today:hover{background:#FFE73D}
+.nav-label{text-align:center;background:var(--cream);border:1px solid var(--line);border-radius:var(--radius-sm);padding:6px 8px;min-height:48px;display:flex;flex-direction:column;justify-content:center}
+.nav-label .lg{font-size:16px;font-weight:700}
+.nav-label .le{font-size:15px;font-weight:700;color:var(--green-ink)}
+.keys{margin:6px 2px 0;font-size:12.5px;color:var(--muted);text-align:center}
+.keys kbd{font-family:inherit;font-size:12px;background:var(--surface);border:1px solid var(--line-strong);border-bottom-width:2px;border-radius:5px;padding:0 5px}
+
+/* ---------- season cards ---------- */
+.seasons-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 8px;font-size:14px;font-weight:700;margin:14px 0 6px}
+.seasons{display:grid;grid-template-columns:repeat(auto-fit,minmax(138px,1fr));gap:8px}
+.season{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;min-height:48px;padding:9px 9px 9px 11px;
+  border:1px solid var(--line);border-left:5px solid var(--green);border-radius:var(--radius-sm);background:var(--surface);cursor:pointer;color:inherit;font-size:13px;line-height:1.3;
+  box-shadow:var(--shadow);transition:background var(--ease),box-shadow var(--ease),transform var(--ease)}
+.season:hover{background:var(--yellow-soft);box-shadow:var(--shadow-hover);transform:translateY(-1px)}
+.season:active{transform:scale(.98)}
+.season.cur{background:var(--cream);border-color:#C9AF00;border-left-color:var(--yellow)}
+.season .sn{font-size:15px;font-weight:700}
+.season .se{font-weight:700;color:var(--muted)}
+.season .sr{color:var(--green-ink);font-weight:600}
+.season .badges{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.badge{display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:700;border-radius:6px;padding:2px 6px;border:1px solid currentColor;line-height:1.25}
+.badge svg{width:13px;height:13px;flex:0 0 13px}
+.badge.main{color:var(--yellow-deep);background:var(--yellow-soft)}
+.badge.sec{color:var(--green-ink);background:var(--green-tint)}
+.badge.note{color:var(--muted);background:#F3F1EC;border-color:var(--line)}
+.badge.cur{color:var(--yellow);background:var(--ink);border-color:var(--ink)}
+
+/* ---------- grid ---------- */
+.grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}
+.dow{text-align:center;font-size:14px;font-weight:700;padding:2px 0;color:var(--muted)}
+.dow.we{color:var(--red)}
+.day{position:relative;min-height:48px;height:clamp(48px,9.5vw,60px);min-width:0;border:1px solid var(--line-strong);border-radius:9px;background:var(--surface);cursor:pointer;padding:0;color:inherit;
+  transition:background var(--ease),box-shadow var(--ease),transform var(--ease)}
+.day:hover{background:var(--yellow-soft)}
+.day:active{transform:scale(.96)}
+.day.empty{visibility:hidden;cursor:default}
+.day .g{position:absolute;left:4px;bottom:3px;font-size:19px;font-weight:700;line-height:1}
+.day .e{position:absolute;top:3px;right:4px;font-size:15px;font-weight:600;line-height:1;color:var(--green-ink)}
+.day .dots{position:absolute;top:4px;left:3px;display:flex;flex-wrap:wrap;gap:2px 1.5px;width:18px}
+.day .dots i{width:5px;height:5px;border-radius:50%;display:block;box-shadow:0 0 0 1px #fff}
+.day.we .g{color:var(--red)}
+.day.nat{background:var(--red);border-color:var(--red-deep)} .day.nat .g,.day.nat .e{color:#fff}
+.day.nat:hover{background:#C10F16}
+.day.pag{border-style:dashed;border-color:var(--green);background:var(--green-tint)}
+.day.today{box-shadow:inset 0 0 0 3px var(--yellow)} .day.today:not(.nat){background:var(--yellow-soft)}
+.day.sel{outline:3px solid var(--green);outline-offset:-1px;z-index:1;box-shadow:0 0 0 3px rgba(7,137,48,.22)}
+.day.sel:not(.nat):not(.today){background:var(--green-tint)}
+.day.today.sel{box-shadow:inset 0 0 0 3px var(--yellow),0 0 0 3px rgba(7,137,48,.22)}
+@keyframes pulseCell{0%,100%{box-shadow:0 0 0 0 rgba(15,71,175,0)}25%,75%{box-shadow:0 0 0 6px rgba(15,71,175,.85)}50%{box-shadow:0 0 0 2px rgba(15,71,175,.5)}}
+.day.pulse{animation:pulseCell 1s ease-in-out 2;outline:3px solid var(--blue);outline-offset:-2px;z-index:2}
+
+/* ---------- legend ---------- */
+.legend{display:flex;flex-wrap:wrap;gap:6px 12px;margin:12px 4px 0;font-size:13.5px;font-weight:600;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.sw{width:16px;height:16px;border-radius:4px;display:inline-block;border:2px solid var(--line-strong)}
+.dt{width:10px;height:10px;border-radius:50%;display:inline-block}
+
+/* ---------- holiday details ---------- */
+.details{border-top:1px solid var(--line);margin-top:12px;padding:10px 4px 0}
+.details h2{margin:0 0 10px}
+.details h2 small{font-size:14px;font-weight:600;margin-left:2px;color:var(--muted)}
+.ent{border-left:5px solid var(--line-strong);padding:6px 6px 6px 11px;margin:0 0 12px;border-radius:4px;scroll-margin-top:10px;transition:background var(--ease)}
+.ent.hl{background:var(--green-tint)}
+.ent.flash{outline:3px solid var(--blue);outline-offset:1px}
+.entlink{display:block;width:100%;background:none;border:0;padding:0;margin:0;text-align:left;font:inherit;color:inherit;cursor:pointer;border-radius:4px}
+.entlink:hover .nm,.entlink:hover .when span:first-child{text-decoration:underline;color:var(--blue)}
+.ent .when{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 8px;font-size:15px;font-weight:700}
+.ent .cat{font-weight:700}
+.ent .nm{font-size:18px;font-weight:700;margin:2px 0}
+.ent .ds{font-size:15.5px}
+.ent .nt{font-size:14.5px;font-style:italic;margin-top:3px;color:var(--muted)}
+
+/* ---------- selected day panel ---------- */
+.selday .big{font-size:19px;font-weight:700}
+.selday .sub{font-size:18px;font-weight:700;color:var(--green-ink)}
+.selday .wd{font-size:14px;font-weight:600;margin-top:2px;color:var(--muted)}
+.grp h3{font-size:12.5px;letter-spacing:.5px;text-transform:uppercase;margin:10px 0 4px;color:var(--muted)}
+.item{display:flex;align-items:center;gap:8px;width:100%;min-height:48px;text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:var(--radius-sm);padding:6px 10px;margin-bottom:6px;cursor:pointer;font-size:16px;font-weight:700;color:inherit;
+  transition:background var(--ease),box-shadow var(--ease)}
+.item:hover{background:var(--yellow-soft);box-shadow:var(--shadow)}
+.item i{flex:0 0 12px;width:12px;height:12px;border-radius:50%}
+.empty-note{font-size:15px;font-style:italic;color:var(--muted)}
+
+/* ---------- footer ---------- */
+footer{margin-top:4px}
+footer .inner{max-width:640px;margin:0 auto;padding:10px 14px 24px;font-size:13.5px;color:var(--muted)}
+
+/* ---------- narrow screens: label on its own row, 7 tappable buttons below ---------- */
+@media (max-width:560px){
+  .wrap{padding:10px 6px 18px}
+  .card{padding:12px 6px}
+  .calhead{padding:0 0 8px}
+  .grid{gap:2px}
+  .navbar{gap:3px;grid-template-columns:repeat(7,minmax(0,1fr));
+    grid-template-areas:"lbl lbl lbl lbl lbl lbl lbl" "py pm pd td nd nm ny";}
+  .nav-btn{min-width:0;padding:0 2px;font-size:15px}
+  .nav-btn.today{padding:0 2px;font-size:14px;justify-self:stretch}
+  .keys{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<!-- ===== Header with tricolor stripe and blue emblem accent ===== -->
+<header class="top">
+  <div class="tricolor"></div>
+  <div class="inner">
+    <svg class="emblem" viewBox="0 0 40 40" aria-hidden="true">
+      <circle cx="20" cy="20" r="19" fill="#0F47AF"/>
+      <polygon points="20,7 23.1,16.4 33,16.4 25,22.2 28,31.6 20,25.8 12,31.6 15,22.2 7,16.4 16.9,16.4" fill="none" stroke="#FCDD09" stroke-width="2" stroke-linejoin="round"/>
+    </svg>
+    <div>
+      <h1>Ethiopian &amp; Gregorian Calendar · የኢትዮጵያ እና የግሪጎሪያን ቀን መቁጠሪያ</h1>
+      <p>National holidays, Orthodox feasts and fasts (Bahire Hasab), US holidays and global days</p>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <!-- ===== Selected day and its holidays ===== -->
+  <section class="card selday" aria-live="polite">
+    <h2>Selected Day</h2>
+    <div id="selectedDay" style="padding:0 4px"></div>
+    <h2 style="margin-top:12px">Holiday(s) Today</h2>
+    <div id="dayHolidays" style="padding:0 4px"></div>
+  </section>
+
+  <!-- ===== Calendar: title, navigation, seasons, grid, legend, details ===== -->
+  <section class="card" id="calCard" aria-label="Calendar">
+    <div class="calhead">
+      <div class="title" id="monthTitle"></div>
+      <nav class="navbar" aria-label="Date navigation">
+        <button class="nav-btn year"  id="prevYear"  title="Previous year (Ctrl + Left arrow)"   aria-label="Previous year">&lt;&lt;&lt;</button>
+        <button class="nav-btn month" id="prevMonth" title="Previous month (Shift + Left arrow)" aria-label="Previous month">&lt;&lt;</button>
+        <button class="nav-btn day"   id="prevDay"   title="Previous day (Left arrow)"           aria-label="Previous day">&lt;</button>
+        <div class="nav-label" id="navLabel" aria-live="polite"></div>
+        <button class="nav-btn day"   id="nextDay"   title="Next day (Right arrow)"              aria-label="Next day">&gt;</button>
+        <button class="nav-btn month" id="nextMonth" title="Next month (Shift + Right arrow)"    aria-label="Next month">&gt;&gt;</button>
+        <button class="nav-btn year"  id="nextYear"  title="Next year (Ctrl + Right arrow)"      aria-label="Next year">&gt;&gt;&gt;</button>
+        <button class="nav-btn today" id="todayBtn"  title="Go to today (T)"                     aria-label="Go to today">Today</button>
+      </nav>
+      <div class="keys">Keys: <kbd>&larr;</kbd> <kbd>&rarr;</kbd> day · <kbd>Shift</kbd> + arrows month · <kbd>Ctrl</kbd> + arrows year · <kbd>T</kbd> today</div>
+      <div class="seasons-head"><span id="seasonsTitle"></span><span id="seasonsToday"></span></div>
+      <div class="seasons" id="seasons"></div>
+    </div>
+    <div class="grid" id="dowRow"></div>
+    <div class="grid" id="daysGrid" style="margin-top:3px"></div>
+    <div class="legend" id="legend"></div>
+    <div class="details">
+      <h2>Holiday Details<small id="detCount"></small></h2>
+      <div id="details"></div>
+    </div>
+  </section>
+</div>
+
+<footer>
+  <div class="tricolor"></div>
+  <div class="inner">Works offline. Supported range: Gregorian 1900 to 2100. Fasika and all movable feasts are computed with Bahire Hasab. Islamic dates outside the confirmed years (2024 to 2026) are calculated and may differ by a day or two because they depend on moon sighting.</div>
+</footer>
+<script>
+/* ===== Ethiopian / Gregorian calendar engine (shared by the page, the PDF and the checks) ===== */
+var ETH_EPOCH = 1724221; // JDN of Meskerem 1, year 1 (Amete Mihret)
+var ET_MONTHS = ["መስከረም","ጥቅምት","ኅዳር","ታኅሣሥ","ጥር","የካቲት","መጋቢት","ሚያዝያ","ግንቦት","ሰኔ","ሐምሌ","ነሐሴ","ጳጉሜን"];
+var G_MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+var G_MON3 = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+var DOW_EN = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+var DOW_FULL = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+var DOW_AM = ["ሰኞ","ማክሰኞ","ረቡዕ","ሐሙስ","ዓርብ","ቅዳሜ","እሑድ"];
+
+function g2j(y,m,d){var a=Math.floor((14-m)/12),yy=y+4800-a,mm=m+12*a-3;return d+Math.floor((153*mm+2)/5)+365*yy+Math.floor(yy/4)-Math.floor(yy/100)+Math.floor(yy/400)-32045;}
+function jul2j(y,m,d){var a=Math.floor((14-m)/12),yy=y+4800-a,mm=m+12*a-3;return d+Math.floor((153*mm+2)/5)+365*yy+Math.floor(yy/4)-32083;}
+function j2g(j){var a=j+32044,b=Math.floor((4*a+3)/146097),c=a-Math.floor(146097*b/4),d=Math.floor((4*c+3)/1461),e=c-Math.floor(1461*d/4),m=Math.floor((5*e+2)/153);
+  return {y:100*b+d-4800+Math.floor(m/10),m:m+3-12*Math.floor(m/10),d:e-Math.floor((153*m+2)/5)+1};}
+function e2j(y,m,d){return ETH_EPOCH+365*(y-1)+Math.floor(y/4)+30*(m-1)+d-1;}
+function j2e(j){var y=Math.floor((4*(j-ETH_EPOCH)+1463)/1461);
+  while(e2j(y,1,1)>j)y--; while(e2j(y+1,1,1)<=j)y++;
+  var doy=j-e2j(y,1,1);return {y:y,m:Math.floor(doy/30)+1,d:(doy%30)+1};}
+function etLeap(y){return y%4===3;}
+function dowIdx(j){return ((j%7)+7)%7;} // 0 = Monday
+function daysInGMonth(y,m){return g2j(m===12?y+1:y,m===12?1:m+1,1)-g2j(y,m,1);}
+function ethEaster(y){var a=y%4,b=y%7,c=y%19,d=(19*c+15)%30,e=(2*a+4*b-d+34)%7;
+  var mo=Math.floor((d+e+114)/31),da=((d+e+114)%31)+1;return jul2j(y,mo,da);}
+function westEaster(y){var a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),
+  h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),
+  mo=Math.floor((h+l-7*m+114)/31),da=((h+l-7*m+114)%31)+1;return g2j(y,mo,da);}
+function hijri2j(y,m,d){return d+Math.ceil(29.5*(m-1))+(y-1)*354+Math.floor((3+11*y)/30)+1948439;}
+function fmtG(j){var g=j2g(j);return G_MONTHS[g.m-1]+" "+g.d+", "+g.y;}
+function fmtGs(j){var g=j2g(j);return G_MON3[g.m-1]+" "+g.d;}
+function fmtE(j){var e=j2e(j);return ET_MONTHS[e.m-1]+" "+e.d+"፣ "+e.y;}
+function fmtEs(j){var e=j2e(j);return ET_MONTHS[e.m-1]+" "+e.d;}
+function nthWd(y,m,wd,n){if(n>0){var f=g2j(y,m,1);var off=(wd-dowIdx(f)+7)%7;return f+off+7*(n-1);}
+  var l=g2j(y,m,daysInGMonth(y,m));return l-((dowIdx(l)-wd+7)%7);}
+
+var CATS = {
+  national:{label:"Ethiopian National Holiday",color:"#DA121A"},
+  orthodox:{label:"Orthodox Fixed Feast",color:"#8A4B00"},
+  movable:{label:"Orthodox Movable Feast",color:"#9A6B00"},
+  fast:{label:"Orthodox Fast",color:"#5E35B1"},
+  voluntary:{label:"Voluntary Fast (የፈቃድ ጾም)",color:"#00838F"},
+  wedfri:{label:"Wednesday & Friday Fast",color:"#AD1457"},
+  season:{label:"Church Season",color:"#5D4037"},
+  monthly:{label:"Monthly Commemoration",color:"#455A64"},
+  us:{label:"US Federal Holiday",color:"#1546B8"},
+  usobs:{label:"US Observance",color:"#0A6FA8"},
+  global:{label:"Global / International Day",color:"#1B7A3A"}
+};
+var CAT_ORDER = ["national","orthodox","movable","fast","voluntary","wedfri","season","monthly","us","usobs","global"];
+
+/* ===== Holiday stories: what each commemorates and why it is kept (2 to 4 sentences) ===== */
+var D = {
+ enkutatash:"Ethiopian New Year falls on Meskerem 1, as the long rainy season ends and the highlands bloom with yellow Adey Abeba daisies. The name is popularly explained as 'gift of jewels', linked to the Queen of Sheba's return from Jerusalem, although explanations of the word vary. Families gather, girls sing 'Abebayehosh' from house to house, and children give drawings and flowers.",
+ kidusyohannes:"The first day of the year is dedicated to St. John the Baptist, who preached repentance and baptised Christ in the Jordan. The Church opens the new year with his feast, and the weeks from Meskerem 1 to Meskel are called ዘመነ ዮሐንስ (the season of John) in the hymns. Prayers are offered for blessing on the year ahead.",
+ demera:"Demera is the eve of Meskel. It recalls the tradition that Empress Helena lit a fire and followed its smoke to the place where the True Cross was buried. Bundles of wood topped with Meskel daisies are blessed and set alight in public squares, and in some communities the way the pole falls is read as a sign for the year.",
+ meskel:"Meskel commemorates the finding of the True Cross by Empress Helena, mother of Constantine, in the 4th century. Ethiopian tradition adds that a fragment of the Cross was later brought to Ethiopia and is kept at Gishen Mariam. The feast is inscribed by UNESCO as intangible heritage and is marked by the Demera bonfire, processions and family gatherings.",
+ bizuhanmariam:"Bizuhan Mariam ('Mary of the many') is a feast of the Virgin Mary kept on መስከረም 21. Mahibere Kidusan explains that it recalls the day the 318 fathers of the Council of Nicaea gathered to condemn the teaching of Arius. It is celebrated with liturgy in churches of St. Mary, and on the same day the Church remembers the Cross coming to rest at Gishen.",
+ kuskuam:"Qusqam commemorates the stay of the Holy Family at Qusqam (Debre Qusqam) in Upper Egypt during their flight from King Herod. Ethiopian hymns describe the hardships of the journey, and the day closes the Season of Flowers (ዘመነ ጽጌ) hymns sung since late Meskerem. Churches named after Qusqam hold their annual feast.",
+ hidarmikael:"Hidar Mikael is one of the two great annual feasts of the Archangel Michael, leader of the heavenly host. It recalls his appointment as chief of the angels after the fall of Satan, according to Church tradition. Churches of St. Michael hold the annual procession of the tabot (ንግሥ); some parishes move the public celebration to the nearest Sunday.",
+ tsionmariam:"Hidar Tsion honours St. Mary of Zion and the Ark of the Covenant. Ethiopian tradition holds that the Ark was brought from Jerusalem by Menelik I, son of King Solomon and the Queen of Sheba, and is kept at the Church of St. Mary of Zion in Aksum. Tens of thousands of pilgrims gather in Aksum for the feast.",
+ tahsasgabriel:"Tahsas Gabriel is an annual feast of the Archangel Gabriel. It recalls his rescue of the three youths Shadrach, Meshach and Abednego from the fiery furnace of King Nebuchadnezzar (Daniel 3). Churches of St. Gabriel celebrate with liturgy and tabot processions.",
+ gena:"Ge'na celebrates the Nativity of Christ in Bethlehem. It falls on Gregorian January 7, which is December 25 in the Julian calendar that the Church follows: ታኅሣሥ 29, or ታኅሣሥ 28 in a year that began on September 12. The faithful attend a night liturgy dressed in white, break the Fast of the Prophets and gather for a family meal; the traditional game of genna is also played.",
+ ketera:"Ketera, the eve of Timket, is named after the 'damming' of water prepared for the next day's blessing. The tabots, replicas of the Ark of the Covenant, are carried from their churches to a river, pool or temporary pond with chanting and singing. Clergy and faithful keep an overnight vigil near the water.",
+ timket:"Timket commemorates the baptism of Christ by John the Baptist in the Jordan River, when, according to the Gospels, the Holy Spirit descended and the Father's voice was heard. At dawn after the overnight vigil the water is blessed and sprinkled on the crowds, and many renew their baptismal vows. The festival is inscribed by UNESCO as intangible heritage, with large celebrations in Gondar, Lalibela and Addis Ababa.",
+ kana:"Kana of Galilee recalls Christ's first miracle, turning water into wine at a wedding in Cana (John 2). It is kept the day after Timket, when most tabots return to their churches in procession. In many places the feast of St. Michael is celebrated on the same day.",
+ asteriyo:"ጥር 21 commemorates the repose (ዕረፍት) of the Virgin Mary; Mahibere Kidusan calls it the feast of her repose, while many calendars also use the name አስተርእዮ ማርያም. It is a major Marian feast kept with liturgy and celebrations in churches of St. Mary. This annual feast is the origin of the monthly Marian day on the 21st.",
+ tsinsetamariam:"ጽንሰታ ለማርያም commemorates the conception of the Virgin Mary, announced by an angel to her parents Joachim and Anne. The Ethiopian Orthodox Tewahedo Church keeps it once a year on ነሐሴ 7, during the Fast of Filseta. It is distinct from the Annunciation (ብሥራት) on መጋቢት 29 and from her birth (ልደታ ለማርያም) on ግንቦት 1.",
+ gishen:"መስከረም 21 also commemorates the day the Cross of Christ came to rest at Gishen Debre Kerbe in Ethiopia. According to the account given by Mahibere Kidusan, Emperor Zara Yaqob received the relic of the Cross and, guided by a vision, placed it at the cross-shaped site of Gishen in 1446 E.C. Pilgrims gather at Gishen Mariam for the feast.",
+ meskelmegabit:"መጋቢት 10 commemorates the day Empress Helena found the True Cross, together with two other crosses, in Jerusalem. Mahibere Kidusan notes that the Church remembers this day as a feast but keeps the great public celebration on መስከረም 17, because መጋቢት 10 always falls in Great Lent. It is counted among the minor feasts of the Lord.",
+ gizret:"ግዝረት commemorates the circumcision of Christ on the eighth day after His birth, in keeping with the Law (Luke 2:21). It is one of the nine minor feasts of the Lord (ንዑሳን በዓላት). Mahibere Kidusan's calendar for ጥር also links this day with the taking up of the Prophet Elijah.",
+ simeon:"ልደተ ስምዖን (the Presentation, also called በዓለ ስምዖን) recalls the day the infant Christ was brought to the Temple 40 days after His birth and was received by the elder Simeon (Luke 2:22 to 38). It is counted among the nine minor feasts of the Lord.",
+ sibket:"ዘመነ ስብከት, the Season of Preaching, begins on ታኅሣሥ 7 and recalls the prophets who foretold the coming of Christ. Mahibere Kidusan divides the weeks before Christmas into ስብከት (ታኅሣሥ 7 to 13), ብርሃን (14 to 20) and ኖላዊ (21 to 28). Some calendars count these as Sundays rather than fixed weeks.",
+ birhan:"ብርሃን (Light) is the second week of the Season of Preaching, ታኅሣሥ 14 to 20. Its readings and hymns speak of Christ as the true light that came into the world (John 1). It is counted among the minor feasts of the Lord.",
+ nolawi:"ኖላዊ (the Good Shepherd) is the third week of the Season of Preaching, ታኅሣሥ 21 to 28. Its readings recall Christ as the Good Shepherd who lays down His life for His sheep (John 10). It leads into the feast of Ge'na.",
+ matewos:"ጥቅምት 12 is the annual commemoration of the repose and witness of the Apostle Matthew, the tax collector who followed Christ and is credited with the first Gospel. Mahibere Kidusan gives this date for his yearly feast. He is also remembered in the monthly commemorations.",
+ gebrekristos:"ቅዱስ ገብረ ክርስቶስ was a prince who, according to the Synaxarium, left his royal life to live as a poor stranger. Mahibere Kidusan gives ጥቅምት 14 as his annual feast. He is also named in the monthly commemoration on the 14th.",
+ yohanneshatsir:"ቅዱስ ዮሐንስ ሐጺር (John the Short or Dwarf) was a desert father of Scetis in Egypt, known for his obedience. Mahibere Kidusan gives ጥቅምት 20 as the commemoration of his repose.",
+ abib:"አቡነ አቢብ (also called ቡላ) is an Ethiopian monastic saint. Mahibere Kidusan gives ጥቅምት 25 as the annual feast of his repose.",
+ eliasbirth:"ታኅሣሥ 1 commemorates the birth of the Prophet Elijah, who according to 2 Kings was taken up to heaven in a chariot of fire. Mahibere Kidusan gives this date for his birth.",
+ teklebirth:"ታኅሣሥ 24 commemorates the birth of Abune Tekle Haymanot, the founder of Debre Libanos. Mahibere Kidusan gives ታኅሣሥ 24 for his birth and ነሐሴ 24 for his repose.",
+ estifanos:"ጥር 1 commemorates the repose of St. Stephen, the first martyr and chief of the deacons (Acts 7). He is also remembered on the 17th of every month.",
+ tirselassie:"ጥር 7 is a feast of the Holy Trinity in Mahibere Kidusan's calendar for the month of ጥር. It is one of the yearly days on which churches of Selassie hold their feast.",
+ kirkostir:"ጥር 15 commemorates the martyrdom of the child St. Kirkos and his mother St. Iyeluta. Mahibere Kidusan gives this as the day they rested in martyrdom, while ሐምሌ 19 recalls their rescue by the Archangel Gabriel.",
+ tirgiorgis:"ጥር 18 is a yearly feast of St. George in Mahibere Kidusan's calendar for ጥር. Churches of St. George mark it with liturgy.",
+ uriel:"ጥር 22 is the feast of the appointment (ሲመት) of the Archangel Uriel, according to Mahibere Kidusan. The same calendar also lists the repose of Abba Antonios (St. Anthony the Great), the father of monks, on this day.",
+ timotewos:"ጥር 23 commemorates the martyrdom of the Apostle Timothy, the companion of St. Paul. Mahibere Kidusan lists it in the feasts of ጥር.",
+ feeding:"ጥር 28 recalls the day Christ fed five thousand people with five loaves and two fish (John 6). Mahibere Kidusan lists it in the feasts of ጥር.",
+ yaredbirth:"ሚያዝያ 5 commemorates the birth of St. Yared in Aksum. Mahibere Kidusan dates his birth to ሚያዝያ 5, 505 E.C. St. Yared is honoured as the composer of the Church's chant (ዜማ).",
+ yared:"ግንቦት 11 commemorates St. Yared, the 6th century composer of the Ethiopian Church's hymns and chant. According to Mahibere Kidusan, he withdrew to a cave in Tselemt and was hidden from the world on ግንቦት 11.",
+ makaryos:"ግንቦት 6 commemorates the repose of Abba Macarius the Great, a founder of monastic life in Scetis, Egypt. Mahibere Kidusan also gives ነሐሴ 19 as the feast of the translation of his relics.",
+ makaryosrelics:"ነሐሴ 19 commemorates the translation of the relics of Abba Macarius the Great to Scetis, according to Mahibere Kidusan. His repose is commemorated on ግንቦት 6.",
+ afewerk:"ግንቦት 12 commemorates the repose of St. John Chrysostom (ዮሐንስ አፈወርቅ, 'golden mouth'), Archbishop of Constantinople and great preacher. Mahibere Kidusan gives this date for his repose. Some calendars also list the translation of Abune Tekle Haymanot's relics on this day.",
+ hamleselassie:"ሐምሌ 7 is the great annual feast of the Holy Trinity. It recalls the three visitors who came to Abraham at Mamre (Genesis 18), which the Church reads as a revelation of the Trinity, and it is the origin of the monthly commemoration on the 7th.",
+ giorgisgasicha:"አባ ጊዮርጊስ ዘጋስጫ was a 15th century Ethiopian scholar and saint, known for his writings and hymns. Mahibere Kidusan gives ሐምሌ 7 as the day of his repose.",
+ kiros:"አባ ኪሮስ was a desert hermit of Egypt. Mahibere Kidusan gives ሐምሌ 8 as the day of his repose.",
+ efrem:"St. Ephrem the Syrian, a 4th century deacon, teacher and hymn writer, is commemorated on ሐምሌ 15, the day of his repose according to Mahibere Kidusan. His hymns to the Virgin Mary (ውዳሴ ማርያም) are prayed daily in the Ethiopian Church.",
+ tsige:"የጽጌ ጾም is a voluntary fast (የፈቃድ ጾም) kept during ዘመነ ጽጌ, the Season of Flowers, from መስከረም 26 to ኅዳር 6. It remembers the flight of the Holy Family to Egypt to escape King Herod; Mahibere Kidusan notes that although the fast is voluntary, believers fast to recall the Virgin Mary's exile. The ማኅሌተ ጽጌ hymns are sung on the nights of this season.",
+ yodit:"ጾመ ዮዲት is a voluntary fast (የፈቃድ ጾም) kept in the month of ጳጉሜን, recalling the fast of Judith, who prayed and fasted for the deliverance of her people (Book of Judith). Mahibere Kidusan lists it among the voluntary fasts of ጳጉሜን but does not give fixed days, so it is shown here across the whole month.",
+ wedfri:"Wednesday and Friday are fasted every week as ጾመ ድኅነት, the fast of salvation: Wednesday recalls the day Christ's death was plotted and Friday the day of the Crucifixion. They are not fasted during the fifty days after Fasika (to ጰራቅሊጦስ), and when Ge'na or Timket falls on a Wednesday or Friday that day is a feast, not a fast (ጾመ ገሀድ is kept on the eve instead).",
+ seasonmetsew:"ዘመነ መጸው (መከር) runs from መስከረም 26 to ታኅሣሥ 25 and is described by Mahibere Kidusan as the season of flowers, wind and fruit. It contains ዘመነ ጽጌ, አስተምህሮ, ስብከት, ብርሃን and ኖላዊ.",
+ seasonhagay:"ዘመነ ሐጋይ (በጋ) runs from ታኅሣሥ 26 to መጋቢት 25. It is the dry season, beginning just before Ge'na.",
+ seasontsedey:"ዘመነ ጸደይ (በልግ) runs from መጋቢት 26 to ሰኔ 25. It is the season of the small (በልግ) rains.",
+ seasonkiremt:"ዘመነ ክረምት runs from ሰኔ 26 to መስከረም 25, about 90 days. Mahibere Kidusan describes it as the season of rain, sowing and weeding, when most farm work in the country is done.",
+
+ yekatitkidane:"Yekatit Kidane Mihret is the annual feast of the Covenant of Mercy. Ethiopian tradition holds that Christ promised His Mother to show mercy to those who honour her and seek her intercession. Churches of Kidane Mihret hold large celebrations, and the day is the origin of the monthly commemoration on the 16th.",
+ adwa:"Adwa Victory Day commemorates March 1, 1896 (የካቲት 23፣ 1888 E.C.), when the Ethiopian army under Emperor Menelik II and Empress Taytu defeated the invading Italian army at Adwa. The victory preserved Ethiopian independence and became a symbol of African resistance to colonial rule. Ceremonies are held at Menelik Square in Addis Ababa and in Adwa.",
+ megabitmedhanealem:"Megabit Medhane Alem is the fixed annual commemoration of the Crucifixion of Christ, the Saviour of the World. Ethiopian Church tradition places the historical Crucifixion on መጋቢት 27, separate from the movable Good Friday. Churches of Medhane Alem hold their annual feast, and the day is the origin of the monthly commemoration on the 27th.",
+ tsinsete:"Megabit 29 commemorates the Annunciation, when the Archangel Gabriel told the Virgin Mary that she would conceive the Son of God (Luke 1). The Church also calls it በዓለ ትስብእት, the feast of the Incarnation, and counts it among the major feasts of the Lord. When it falls in Great Lent it is kept with special services.",
+ giorgis:"Miyazia Giorgis is the annual feast of St. George, a soldier who according to tradition was martyred under Emperor Diocletian in the early 4th century. St. George is one of the most beloved saints in Ethiopia, and many churches bear his name. Large crowds gather at his churches, such as Addis Ababa's St. George Cathedral.",
+ patriots:"Patriots' Victory Day commemorates the return of Emperor Haile Selassie to Addis Ababa on May 5, 1941 (ሚያዝያ 27), five years after the Italian occupation began. It honours the arbegnoch (patriots) who resisted the occupation. Wreaths are laid at the Patriots' Monument at Arat Kilo.",
+ lideta:"Lideta Le Mariam celebrates the birth of the Virgin Mary to Joachim and Anne, as told in Church tradition. It is one of the most widely celebrated Marian feasts and is the origin of the monthly commemoration on the 1st. Churches of Lideta Mariam hold the annual tabot procession.",
+ derg:"Ginbot 20 commemorates May 28, 1991, when the military government known as the Derg fell and EPRDF forces entered Addis Ababa. It is a national public holiday marked by official ceremonies.",
+ labour:"International Workers' Day, May 1, is a public holiday in Ethiopia. It recognises the contribution of workers and the history of the international labour movement. Trade unions and government bodies hold meetings and events.",
+ senemikael:"Sene Mikael is the second great annual feast of the Archangel Michael. It recalls his help to the righteous, and Church tradition associates it with the dedication of an early church in his name. Churches of St. Michael celebrate with tabot processions; some parishes move the public celebration to the nearest Sunday.",
+ petrospawlos:"Hamle 5 commemorates the martyrdom of the Apostles Peter and Paul in Rome under Emperor Nero, according to tradition. It ends the Fast of the Apostles. Abune Gebre Menfes Kidus, an Ethiopian ascetic saint, is also remembered in the readings of the day.",
+ hamlegabriel:"Hamle Gabriel commemorates the Archangel Gabriel's rescue of the child martyr St. Kirkos (Cyriacus) and his mother Iyeluta from a cauldron of boiling water, according to the Synaxarium. It is one of the most popular feasts of St. Gabriel, with pilgrimages to Kulubi Gabriel near Dire Dawa.",
+ debretabor:"Debre Tabor commemorates the Transfiguration, when Christ revealed His glory to Peter, James and John on a mountain identified in tradition as Mount Tabor. The feast is also called ቡሄ: boys go from house to house singing and receive bread (ሙልሙል), and torches are lit in the evening.",
+ filsetafeast:"Filseta commemorates the Assumption of the Virgin Mary. Ethiopian tradition, following the Synaxarium, holds that her body was taken up into heaven, and the Apostles fasted until this was revealed to them. The fast of Filseta ends on this day with great celebrations in churches of St. Mary.",
+ teklehaymanot:"Abune Tekle Haymanot was a 13th century monk from Shewa who founded the monastery of Debre Libanos and is one of the most revered Ethiopian saints. Tradition credits him with spreading the faith in central Ethiopia and with a role in the restoration of the Solomonic dynasty. Nehase 24 commemorates his death, and pilgrims gather at Debre Libanos.",
+ pagumerufael:"Pagume 3 is the feast of the Archangel Raphael, the healer who guided Tobias in the Book of Tobit. Tradition recounts his protection of a church and its people from a great sea creature. Many believers wash in the rains of Pagume, which are considered blessed.",
+ eidfitr:"Eid al-Fitr marks the end of the holy month of Ramadan, the month of daytime fasting in Islam. Muslims in Ethiopia gather for mass prayers, notably at Addis Ababa Stadium, give alms (Zakat al-Fitr) and visit family and neighbours. It is a national public holiday, and its date depends on the sighting of the new moon of Shawwal.",
+ eidadha:"Eid al-Adha, also called Arafa in Ethiopia, is the Feast of Sacrifice. It commemorates the willingness of the Prophet Ibrahim (Abraham) to sacrifice his son in obedience to God, and it coincides with the Hajj pilgrimage. Families attend prayers, sacrifice an animal and share the meat with relatives and the needy.",
+ mawlid:"Mawlid celebrates the birth of the Prophet Muhammad, traditionally dated 12 Rabi al-Awwal. In Ethiopia it is a national public holiday marked by prayers, religious songs (menzuma) and gatherings, with large celebrations in places such as Harar and Jimma. Some Muslims do not celebrate Mawlid, as views on the practice differ.",
+ nenewe:"The Fast of Nineveh lasts three days, Monday to Wednesday, two weeks before Great Lent. It commemorates the repentance of the people of Nineveh after the preaching of the Prophet Jonah (Jonah 3). It is kept with strict fasting and prayer.",
+ abiy:"Great Lent (ዐቢይ ጾም, also ሁዳዴ) is the longest fast of the year, 55 days before Fasika. It recalls Christ's 40 day fast in the desert and adds the week of Heraclius and Holy Week. The faithful abstain from all animal products and usually eat only after the afternoon service.",
+ hawariat:"The Fast of the Apostles recalls how the Apostles fasted and prayed after Pentecost before going out to preach. It begins the Monday after Pentecost and ends on the eve of the feast of Peter and Paul on ሐምሌ 5, so its length changes every year with the date of Fasika.",
+ nebiyat:"The Fast of the Prophets (also ጾመ ገና) prepares for Christmas. It recalls the prophets who foretold the coming of Christ, and runs from ኅዳር 15 to the eve of Ge'na.",
+ filseta:"The Fast of Filseta (the Assumption) runs from ነሐሴ 1 to 15. It follows the tradition that the Apostles fasted until the assumption of the Virgin Mary was revealed to them. It is kept with great devotion, and many people spend nights in church singing hymns.",
+ gahad:"Gahad (ጾመ ገሃድ) is the strict one day fast kept on the eve of Christmas and on the eve of Epiphany. It prepares the faithful for the feast that follows the next day.",
+ zewerede:"Zewerede ('He who came down') is the first Sunday of Great Lent. It recalls that the Son of God came down from heaven for the salvation of humanity, and its hymns, attributed to St. Yared, call the faithful to begin the fast in humility.",
+ kidist:"Kidist ('Holy') is the second Sunday of Lent. Its readings praise the holiness of God and call believers to live a holy life during the fast.",
+ mekurab:"Mekurab ('Synagogue') is the third Sunday of Lent. It recalls Christ teaching in the synagogue and driving the money changers out of the Temple (John 2).",
+ metsagu:"Metsagu ('The paralytic') is the fourth Sunday of Lent. It commemorates Christ healing the man who had been ill for 38 years at the pool of Bethesda (John 5).",
+ debrezeit:"Debre Zeit ('Mount of Olives') is the fifth Sunday of Lent and marks the middle of the fast. It recalls Christ's teaching on the Mount of Olives about His Second Coming (Matthew 24).",
+ gebreher:"Gebre Her ('The good servant') is the sixth Sunday of Lent. It recalls the parable of the talents, in which the faithful servant used his master's gifts well (Matthew 25).",
+ nikodimos:"Nikodimos is the seventh Sunday of Lent. It recalls the Pharisee Nicodemus, who came to Christ by night and was taught about being born again of water and the Spirit (John 3).",
+ hosana:"Hosanna (Palm Sunday) commemorates Christ's entry into Jerusalem, when the crowds spread palm branches and cried 'Hosanna'. Worshippers receive palm fronds and often weave them into rings and crosses. It is the eighth Sunday of Lent and opens Holy Week.",
+ hemamat:"Holy Week (ሰሙነ ሕማማት) is the week of the Passion, from the Monday after Hosanna to Easter. Services are held through the day with readings, prostrations and the hours of the Passion. Greetings and the kiss of peace are not exchanged during this week.",
+ tselote:"Tselote Hamus (Holy Thursday) commemorates the Last Supper and Christ washing the feet of His disciples (John 13). Priests wash the feet of the faithful, and a dish of boiled grains called gulban is traditionally eaten.",
+ siklet:"Siklet (Good Friday) commemorates the Crucifixion and death of Christ. The faithful spend the day in church with readings, prayer and many prostrations (ስግደት), fasting until evening. It is the most solemn day of Holy Week and a national public holiday.",
+ kedame:"Kedame Siur ('Blessed Saturday') recalls the day Christ lay in the tomb. Priests give the faithful a blessed reed (ቄጠማ) as a sign of the good news of the Resurrection, and the Easter vigil begins in the evening.",
+ fasika:"Fasika celebrates the Resurrection of Christ, the greatest feast of the Orthodox year. After an evening vigil that ends in the early hours, the faithful break the 55 day Great Lent with festive dishes such as doro wat. It is a national public holiday and falls on the same day as Eastern Orthodox Easter.",
+ rikbe:"Rikbe Kahnat ('meeting of the priests') falls on the Wednesday 25 days after Fasika, counting Fasika as day one. It recalls the gatherings of the Apostles and the canon that bishops meet in synod, and the Holy Synod traditionally convenes around this time.",
+ erget:"Erget (the Ascension) is kept on the Thursday 40 days after Fasika, counting Fasika as day one. It commemorates Christ ascending into heaven from the Mount of Olives in the presence of His disciples (Acts 1).",
+ paraklitos:"Paraklitos (Pentecost) is kept 50 days after Fasika, counting Fasika as day one. It commemorates the descent of the Holy Spirit, the Paraclete, on the Apostles in Jerusalem (Acts 2), and closes the joyful 50 day season in which there is no fasting.",
+ /* United States */
+ newyear:"New Year's Day is the first day of the Gregorian calendar year and a US federal holiday. It is celebrated worldwide with midnight fireworks, gatherings and resolutions for the year ahead.",
+ mlk:"Martin Luther King Jr. Day, the third Monday of January, honours the civil rights leader born on January 15, 1929. It recognises his nonviolent campaign against racial segregation and is promoted as a national day of service.",
+ washington:"Washington's Birthday, commonly called Presidents' Day, is observed on the third Monday of February. It honours George Washington, the first US president, born on February 22, 1732, and many also use it to honour all US presidents.",
+ memorial:"Memorial Day, the last Monday of May, honours members of the US armed forces who died in military service. It began after the Civil War as Decoration Day, when graves were decorated with flowers, and is widely seen as the unofficial start of summer.",
+ juneteenth:"Juneteenth commemorates June 19, 1865, when Union troops announced in Galveston, Texas that enslaved people there were free. It became a federal holiday in 2021 and is marked by festivals, readings and family gatherings.",
+ independence:"Independence Day celebrates the adoption of the Declaration of Independence by the Continental Congress on July 4, 1776. Americans mark it with fireworks, parades, barbecues and patriotic music.",
+ labor:"Labor Day, the first Monday of September, honours the American labour movement and the contributions of workers. It became a federal holiday in 1894 and marks the unofficial end of summer.",
+ columbus:"Columbus Day, the second Monday of October, marks Christopher Columbus's arrival in the Americas on October 12, 1492. Many states and cities observe the day as Indigenous Peoples' Day instead, to honour Native American history and cultures; views on the holiday differ.",
+ veterans:"Veterans Day honours everyone who has served in the US armed forces. It falls on November 11, the anniversary of the 1918 armistice that ended fighting in World War I, and was first called Armistice Day.",
+ thanksgiving:"Thanksgiving Day, the fourth Thursday of November, is a day of giving thanks rooted in harvest festivals and often linked to the 1621 feast at Plymouth. Families gather for a meal of turkey and seasonal dishes, and parades and football games are popular.",
+ christmas:"Christmas Day (Western) celebrates the birth of Jesus Christ on December 25 in the Gregorian calendar. It is a US federal holiday and is celebrated worldwide with church services, gifts and family meals. Ethiopian Orthodox Christians celebrate the Nativity on January 7 (ገና).",
+ observed:"When a fixed federal holiday falls on a weekend, federal offices close on the nearest weekday instead. A Saturday holiday is observed on the Friday before and a Sunday holiday on the Monday after.",
+ valentine:"Valentine's Day, February 14, is named after St. Valentine, an early Christian martyr. It is widely observed in the US and elsewhere as a day for expressing love with cards, flowers and gifts.",
+ groundhog:"Groundhog Day, February 2, is a US folk tradition in which a groundhog's behaviour is said to predict the coming of spring. The best known event takes place in Punxsutawney, Pennsylvania.",
+ patrick:"St. Patrick's Day, March 17, honours the patron saint of Ireland, traditionally said to have died on this date in the 5th century. In the US it is celebrated with parades, green clothing and Irish music.",
+ mothers:"Mother's Day, the second Sunday of May in the US, honours mothers and motherhood. It became a national observance in 1914 after a campaign by Anna Jarvis, and people give cards, flowers and gifts.",
+ flag:"Flag Day, June 14, commemorates the adoption of the US flag by the Continental Congress in 1777. Many Americans display the flag on this day.",
+ fathers:"Father's Day, the third Sunday of June in the US, honours fathers and father figures. It was made a permanent national observance in 1972 and is marked with cards, gifts and family time.",
+ halloween:"Halloween, October 31, began as the eve of All Saints' Day and draws on older autumn festivals. In the US it is celebrated with costumes, trick or treating, carved pumpkins and parties.",
+ election:"Election Day, the Tuesday after the first Monday of November, is set by federal law for US general elections. Presidential elections take place every four years and congressional elections every two years.",
+ blackfriday:"Black Friday, the day after Thanksgiving, traditionally opens the US holiday shopping season. Stores and online sellers offer large discounts, and many people have the day off.",
+ xmaseve:"Christmas Eve, December 24, is the evening before Christmas Day. It is marked by family gatherings, candlelight services and midnight Mass.",
+ nyeve:"New Year's Eve, December 31, is the last day of the Gregorian year. It is celebrated with parties and countdowns to midnight, such as the ball drop in New York's Times Square.",
+ /* Global */
+ westeaster:"Easter Sunday in the Western (Catholic and Protestant) churches celebrates the Resurrection of Christ. It is calculated with the Gregorian calendar, so it often falls on a different date from Ethiopian Orthodox Fasika, which follows the Julian calculation.",
+ westgoodfriday:"Good Friday in the Western churches commemorates the Crucifixion of Christ two days before Western Easter. It is a public holiday in many countries and is observed with solemn services.",
+ education:"The International Day of Education was proclaimed by the UN General Assembly in 2018. It celebrates the role of education in peace and development and calls for inclusive, quality education for all.",
+ holocaust:"International Holocaust Remembrance Day marks the liberation of the Auschwitz-Birkenau camp on January 27, 1945. It honours the six million Jewish victims of the Holocaust and millions of others, and promotes education to prevent genocide.",
+ motherlang:"International Mother Language Day was proclaimed by UNESCO in 1999 to promote linguistic and cultural diversity. The date recalls students killed in Dhaka in 1952 while demonstrating for the recognition of the Bangla language.",
+ wildlife:"World Wildlife Day marks the signing of the CITES convention on trade in endangered species on March 3, 1973. It raises awareness of wild animals and plants and the threats they face.",
+ women:"International Women's Day grew out of early 20th century labour movements and has been observed by the UN since 1977. It celebrates the achievements of women and calls for gender equality.",
+ happiness:"The International Day of Happiness was established by the UN in 2012 and first observed in 2013. It recognises happiness and well being as universal goals for people and public policy.",
+ racism:"The International Day for the Elimination of Racial Discrimination recalls the Sharpeville massacre in South Africa on March 21, 1960, when police killed 69 peaceful protesters. The UN uses the day to call for an end to racism in all its forms.",
+ water:"World Water Day has been held by the UN since 1993. It draws attention to the importance of fresh water and to the people who still live without safe drinking water.",
+ tb:"World Tuberculosis Day marks March 24, 1882, when Robert Koch announced the discovery of the bacterium that causes TB. It raises awareness of efforts to end the disease, which remains a major cause of death worldwide.",
+ health:"World Health Day marks the founding of the World Health Organization on April 7, 1948. Each year it focuses on a different global health theme.",
+ earth:"Earth Day was first held in the United States on April 22, 1970, and is now observed in most countries. It mobilises people to support environmental protection through clean ups, tree planting and advocacy.",
+ malaria:"World Malaria Day was established by the World Health Assembly in 2007. It recognises global efforts to control and eliminate malaria, which remains a major health challenge in Africa, including Ethiopia.",
+ press:"World Press Freedom Day was proclaimed by the UN General Assembly in 1993. It celebrates the principles of press freedom and honours journalists who have lost their lives in their work.",
+ africa:"Africa Day marks the founding of the Organisation of African Unity in Addis Ababa on May 25, 1963. The OAU was succeeded by the African Union, which is headquartered in Addis Ababa, and the day celebrates African unity and culture.",
+ tobacco:"World No Tobacco Day was created by the World Health Organization in 1987 and first marked on May 31, 1988. It highlights the health risks of tobacco use and promotes policies to reduce it.",
+ environment:"World Environment Day, led by the UN Environment Programme, has been held on June 5 since 1974. It is the UN's main day for encouraging awareness and action to protect the environment.",
+ refugee:"World Refugee Day was first observed by the UN in 2001, the 50th anniversary of the Refugee Convention. It honours people forced to flee conflict or persecution; Ethiopia hosts one of the largest refugee populations in Africa.",
+ population:"World Population Day was established by the UN in 1989, inspired by the world population reaching about five billion on July 11, 1987. It draws attention to population issues such as family planning and maternal health.",
+ mandela:"Nelson Mandela International Day is held on Mandela's birthday, July 18. The UN invites everyone to give 67 minutes to community service, one for each year of his public service.",
+ youth:"International Youth Day was endorsed by the UN General Assembly in 1999 and first observed in 2000. It draws attention to issues facing young people and celebrates their role in society.",
+ humanitarian:"World Humanitarian Day marks the bombing of the UN headquarters in Baghdad on August 19, 2003, which killed 22 people. It honours aid workers who risk their lives to help others.",
+ literacy:"International Literacy Day was proclaimed by UNESCO in 1966 and first held in 1967. It highlights literacy as a matter of dignity and human rights.",
+ peace:"The International Day of Peace was established by the UN in 1981 and has been held on September 21 since 2002. The UN calls for 24 hours of non-violence and cease fire on this day.",
+ tourism:"World Tourism Day, held by UN Tourism since 1980, marks the adoption of the organisation's statutes in 1970. It raises awareness of the social, cultural and economic value of tourism.",
+ nonviolence:"The International Day of Non-Violence is held on October 2, the birthday of Mahatma Gandhi. It was established by the UN in 2007 to spread the message of non-violence through education and public awareness.",
+ teachers:"World Teachers' Day has been celebrated since 1994 on the anniversary of the 1966 UNESCO and ILO recommendation on the status of teachers. It honours teachers and the conditions they need to teach well.",
+ mentalhealth:"World Mental Health Day was first held in 1992 by the World Federation for Mental Health. It raises awareness of mental health and supports efforts to improve care.",
+ food:"World Food Day marks the founding of the UN Food and Agriculture Organization on October 16, 1945. It promotes action against hunger and for healthy diets for all.",
+ unday:"United Nations Day marks the entry into force of the UN Charter on October 24, 1945. Ethiopia was one of the founding members of the United Nations.",
+ children:"World Children's Day is held on November 20, the anniversary of the UN Declaration of the Rights of the Child (1959) and the Convention on the Rights of the Child (1989). It promotes the welfare and rights of children worldwide.",
+ vaw:"The International Day for the Elimination of Violence against Women was designated by the UN in 1999. It opens 16 days of activism against gender based violence that end on Human Rights Day.",
+ aids:"World AIDS Day, first held in 1988, raises awareness of HIV and AIDS. It remembers those who have died and supports people living with HIV.",
+ disabilities:"The International Day of Persons with Disabilities was proclaimed by the UN in 1992. It promotes the rights and well being of persons with disabilities in all parts of society.",
+ humanrights:"Human Rights Day marks the adoption of the Universal Declaration of Human Rights by the UN General Assembly on December 10, 1948. It is the closing day of the 16 days of activism against gender based violence.",
+ migrants:"International Migrants Day marks the UN's adoption of the convention on the rights of migrant workers on December 18, 1990. It recognises the contributions of migrants and calls for the protection of their rights."
+};
+
+/* ===== Monthly rotating commemorations: [names, short history] ===== */
+var MONTHLY = {
+ 1:["ልደታ ለማርያም፣ ቅዱስ ራጉኤል፣ ነቢዩ ኤልያስ","The 1st recalls the birth of the Virgin Mary to Joachim and Anne, whose annual feast is ግንቦት 1. The Archangel Raguel, named in the Book of Enoch as one of the holy angels, and the Prophet Elijah, who according to 2 Kings was taken up to heaven in a chariot of fire, are remembered on the same day."],
+ 2:["ታዴዎስ ሐዋርያ፣ ኢዮብ ጻድቅ","The Apostle Thaddeus, one of the Twelve, is remembered for preaching the Gospel after Pentecost. Job the righteous, whose patience under great suffering is told in the Book of Job, is also commemorated. Calendars differ on which of the two first gave the 2nd its monthly commemoration."],
+ 3:["በዓታ ማርያም፣ ዜና ማርቆስ፣ ነአኩቶ ለአብ","The 3rd recalls the presentation of the Virgin Mary in the Temple at the age of three, according to Church tradition, celebrated annually on ታኅሣሥ 3. Abune Zena Markos, an Ethiopian monastic saint, and Na'akueto La'ab, a Zagwe king of Lasta remembered for his piety, are also commemorated."],
+ 4:["ዮሐንስ ወልደ ነጎድጓድ","St. John the Evangelist, son of Zebedee, was called with his brother James a 'son of thunder' (Mark 3:17). Tradition credits him with the fourth Gospel, three Epistles and the Book of Revelation. The Church remembers him on the 4th of every month."],
+ 5:["ጴጥሮስ ወጳውሎስ፣ አቡነ ገብረ መንፈስ ቅዱስ","The Apostles Peter and Paul are remembered on the 5th because their annual feast, the day of their martyrdom in Rome, is ሐምሌ 5. Abune Gebre Menfes Kidus, an Ethiopian ascetic associated with Mount Zuqualla and known in tradition for living among wild animals, is also commemorated."],
+ 6:["ኢየሱስ፣ ቍስቋም፣ ቅድስት አርሴማ","The 6th honours the Lord Jesus and recalls the Holy Family's stay at Qusqam in Upper Egypt during their flight from Herod, whose annual feast is ኅዳር 6. St. Arsema (Rhipsime), a virgin martyr venerated in Armenia and Ethiopia, is also remembered."],
+ 7:["ሥላሴ፣ ፊልሞና፣ አብላንዮስ","The Holy Trinity is honoured on the 7th. The annual feast on ሐምሌ 7 recalls the three visitors who appeared to Abraham at Mamre (Genesis 18), which the Church reads as a revelation of the Trinity. Saints Philemon and Ablanios are also commemorated."],
+ 8:["ማቴዎስ ወንጌላዊ፣ ዮልያኖስ፣ አባ ኪሮስ","St. Matthew, the tax collector who became an Apostle and is credited with the first Gospel, is remembered on the 8th. Abba Kiros, a desert hermit of Egypt, and St. Julian are also commemorated; local calendars sometimes list the saints of this day differently."],
+ 9:["ቶማስ ሐዋርያ፣ እንድርያስ ሐዋርያ፣ አውሳብዮስ፣ አርባ ሰማዕታት","The Apostles Thomas, remembered for his confession 'My Lord and my God' (John 20), and Andrew, brother of Peter, are commemorated on the 9th. The Forty Martyrs of Sebaste, soldiers who according to tradition died on a frozen lake in the 4th century, and St. Eusebius are also remembered."],
+ 10:["በዓለ መስቀሉ ለእግዚእነ","The 10th is dedicated to the Holy Cross of Christ. Tradition links the day to the finding of the Cross by Empress Helena and to the arrival of a fragment of the Cross in Ethiopia, now kept at Gishen Mariam; accounts differ on which event the monthly day recalls. The great annual feast of the Cross is Meskel on መስከረም 17."],
+ 11:["ሐና ወኢያቄም፣ ቅዱስ ፋሲለደስ ሰማዕት","Saints Joachim and Anne, the parents of the Virgin Mary according to Church tradition, are remembered on the 11th. St. Fasiledes, a martyr of the early Church venerated in Egypt and Ethiopia, is also commemorated."],
+ 12:["ቅዱስ ሚካኤል ሊቀ መላእክት፣ ክርስቶስ ሠምራ","The Archangel Michael, leader of the heavenly host, is honoured on the 12th because his great annual feast, recalling his appointment as chief of the angels, is ኅዳር 12. Kristos Semra, an Ethiopian woman saint of the 15th century known in tradition for her prayers of intercession, is also commemorated."],
+ 13:["እግዚአብሔር አብ፣ ቅዱስ ሩፋኤል ሊቀ መላእክት","The 13th honours God the Father and the Archangel Raphael, the healer who guided Tobias in the Book of Tobit. Raphael's great annual feast is on ጳጉሜን 3, and sources give different explanations for his link to the 13th."],
+ 14:["አቡነ አረጋዊ፣ አባ ገብረ ክርስቶስ፣ ድምጥያኖስ ሰማዕት","Abune Aregawi, one of the Nine Saints who came to Ethiopia in the late 5th century, founded the monastery of Debre Damo on a cliff top that, according to tradition, he reached with the help of a serpent. His annual feast is ጥቅምት 14, and Abba Gebre Kristos and the martyr Dimetianos are remembered with him on the 14th."],
+ 15:["ቂርቆስና ኢየሉጣ፣ ስልፋኮስ","St. Kirkos (Cyriacus), a child martyr, and his mother Iyeluta (Julitta) were martyred under Emperor Diocletian according to tradition. Their annual feast is ጥር 15, and the many churches of Kirkos in Ethiopia hold their monthly service on the 15th. St. Silfakos is also commemorated."],
+ 16:["ኪዳነ ምሕረት፣ ሚካኤል ጳጳስ","The 16th recalls the Covenant of Mercy, the promise that, according to Ethiopian tradition, Christ made to His Mother to show mercy to those who seek her intercession. Its annual feast, የካቲት 16, gives the monthly day its date. A bishop named Michael is also commemorated."],
+ 17:["ቅዱስ እስጢፋኖስ፣ ሉቃስ ዘዓምደ ብርሃን","St. Stephen, one of the first seven deacons, was stoned in Jerusalem and is honoured as the first Christian martyr (Acts 6 and 7). He is remembered on the 17th, together with St. Luke 'of the pillar of light', an ascetic saint."],
+ 18:["ፊልጶስ ሐዋርያ፣ ኤስድሮስ ሰማዕት፣ ኤዎስጣቴዎስ ሰማዕት","The Apostle Philip, who brought Nathanael to Christ (John 1), is remembered on the 18th. The martyrs Isidore and Eustathius, honoured in the Synaxarium for dying for their faith, are commemorated with him."],
+ 19:["ቅዱስ ገብርኤል ሊቀ መላእክት፣ አርቃዲዎስ","The Archangel Gabriel, who announced the births of John the Baptist and of Christ (Luke 1), is honoured on the 19th. The day follows his annual feast on ታኅሣሥ 19, which recalls the rescue of the three youths from the fiery furnace; his other popular feast is ሐምሌ 19. St. Arcadius is also commemorated."],
+ 20:["ነቢዩ ኤልሳዕ፣ ሐጌ ነቢይ፣ አባ ሰላማ መተርጉም","The 20th commemorates the Prophets Elisha, the disciple of Elijah, and Haggai, who urged the rebuilding of the Temple. Abba Selama the Translator, a 14th century metropolitan of Ethiopia credited with translating many books into Ge'ez, is also commemorated."],
+ 21:["በዓለ እግዝእትነ ማርያም","The Virgin Mary, Mother of God, is honoured on the 21st, one of the most widely kept monthly days in Ethiopia. Tradition links the day to her falling asleep, commemorated annually on ጥር 21 (አስተርእዮ ማርያም). Many families hold monthly gatherings (ማኅበር) in her honour."],
+ 22:["ቅዱስ ዑራኤል ሊቀ መላእክት፣ ያዕቆብ ምሥራቃዊ፣ ደቅስዮስ","The Archangel Uriel, named in the Book of Enoch and honoured in Ethiopian tradition as an angel of light and revelation, is remembered on the 22nd. St. James of the East and St. Dexios are also commemorated."],
+ 23:["ቅዱስ ጊዮርጊስ ሰማዕት፣ ለጊኖስ ሰማዕት","St. George, a soldier martyred under Diocletian according to tradition, is one of the most venerated saints in Ethiopia. His annual feast on ሚያዝያ 23 marks his martyrdom and gives the monthly day its date. Longinus, traditionally the soldier who pierced Christ's side and later believed, is also remembered."],
+ 24:["አቡነ ተክለ ሃይማኖት","Abune Tekle Haymanot, the 13th century monk from Shewa who founded the monastery of Debre Libanos, is remembered on the 24th. His birth is commemorated on ታኅሣሥ 24 and his repose on ነሐሴ 24, the dates Mahibere Kidusan gives."],
+ 25:["ቅዱስ መርቆሬዎስ፣ አኒፍኖስ","St. Mercurius, a Roman soldier martyred in the 3rd century according to tradition, is remembered on the 25th. In icons he is shown on horseback with two swords, and St. Anifnos is commemorated with him."],
+ 26:["ሆሴዕ ነቢይ፣ ሳዶቅ ሰማዕት","The Prophet Hosea, whose book calls Israel back to faithfulness through the image of a faithful marriage, is remembered on the 26th. The martyr Sadoc, honoured in the Synaxarium, is commemorated with him."],
+ 27:["መድኃኔዓለም፣ ሕዝቅያስ ነቢይ፣ አባ ዮሐንስ","The 27th honours Medhane Alem, the Saviour of the World, in remembrance of the Crucifixion. Ethiopian tradition places the historical Crucifixion on መጋቢት 27, which gives the monthly day its date. King Hezekiah and Abba Yohannes are also commemorated."],
+ 28:["አማኑኤል፣ ቆስጠንጢኖስ፣ አብርሃም","The 28th honours Emmanuel ('God with us', Isaiah 7:14), a title of Christ, together with Emperor Constantine and the Patriarch Abraham. Explanations of the link to the 28th vary; some relate it to the Nativity, which falls on ታኅሣሥ 28 in some years."],
+ 29:["በዓለ ወልድ፣ ሳሙኤል ዘወገግ","The 29th, the Feast of the Son, recalls the Nativity of Christ, which falls on ታኅሣሥ 29 in most years. The Church also connects the day with the Annunciation on መጋቢት 29. Abba Samuel of Wagag (Waldiba) is commemorated."],
+ 30:["ማርቆስ ወንጌላዊ","St. Mark the Evangelist, credited with the second Gospel, founded the Church of Alexandria, from which the Ethiopian Church received its bishops for many centuries. His martyrdom is commemorated on ሚያዝያ 30, and he is remembered on the 30th of every month."]
+};
+
+/* Confirmed officially observed Islamic holiday dates in Ethiopia [y,m,d] */
+var ISLAMIC_CONFIRMED = {
+ 2024:{eidfitr:[2024,4,10],eidadha:[2024,6,16],mawlid:[2024,9,15]},
+ 2025:{eidfitr:[2025,3,30],eidadha:[2025,6,6],mawlid:[2025,9,5]},
+ 2026:{eidfitr:[2026,3,20],eidadha:[2026,5,27],mawlid:[2026,8,25]}
+};
+
+/* ===== Holiday engine ===== */
+var HOL = new Map(); var DONE = new Set(); var SPANS = [];
+function addSpan(o){SPANS.push(o);}
+function add(jdn,e){e.jdn=jdn;if(!HOL.has(jdn))HOL.set(jdn,[]);HOL.get(jdn).push(e);}
+
+function buildYear(Y){
+  if(DONE.has(Y))return; DONE.add(Y);
+  var EY = Y-8; // Ethiopian year from Sep(Y-1) to Sep(Y)
+  var E = function(m,d){return e2j(EY,m,d);};
+  add(E(1,1),{id:"enkutatash",name:"እንቁጣጣሽ (የኢትዮጵያ አዲስ ዓመት)",cats:["national"]});
+  add(E(1,1),{id:"kidusyohannes",name:"ርዕሰ ዓውደ ዓመት፣ ቅዱስ ዮሐንስ",cats:["orthodox"]});
+  add(E(1,16),{id:"demera",name:"ደመራ",cats:["orthodox"]});
+  add(E(1,17),{id:"meskel",name:"መስቀል (የመስቀል በዓል)",cats:["national"],rank:"minor"});
+  add(E(1,21),{id:"bizuhanmariam",name:"ብዙኃን ማርያም",cats:["orthodox"]});
+  add(E(3,6),{id:"kuskuam",name:"ቍስቋም ማርያም",cats:["orthodox"]});
+  add(E(3,12),{id:"hidarmikael",name:"ኅዳር ሚካኤል",cats:["orthodox"]});
+  add(E(3,21),{id:"tsionmariam",name:"ኅዳር ጽዮን (ጽዮን ማርያም)",cats:["orthodox"]});
+  add(E(4,19),{id:"tahsasgabriel",name:"ታኅሣሥ ገብርኤል",cats:["orthodox"]});
+  var gena = jul2j(Y-1,12,25);
+  add(gena,{id:"gena",name:"ገና (ልደተ ክርስቶስ)",cats:["national"],rank:"major"});
+  add(E(5,10),{id:"ketera",name:"ከተራ (የጥምቀት ዋዜማ)",cats:["orthodox"]});
+  add(E(5,11),{id:"timket",name:"ጥምቀት (በዓለ ጥምቀት)",cats:["national"],rank:"major"});
+  add(E(5,12),{id:"kana",name:"ቃና ዘገሊላ",cats:["orthodox"],rank:"minor"});
+  add(E(5,21),{id:"asteriyo",name:"ዕረፍታ ለማርያም (አስተርእዮ)",cats:["orthodox"]});
+  add(E(6,16),{id:"yekatitkidane",name:"የካቲት ኪዳነ ምሕረት",cats:["orthodox"]});
+  add(E(6,23),{id:"adwa",name:"የዓድዋ ድል በዓል",cats:["national"]});
+  add(E(7,27),{id:"megabitmedhanealem",name:"መጋቢት መድኃኔዓለም",cats:["orthodox"]});
+  add(E(7,29),{id:"tsinsete",name:"በዓለ ትስብእት (ብሥራት)",cats:["orthodox"],rank:"major"});
+  add(E(8,23),{id:"giorgis",name:"ሚያዝያ ጊዮርጊስ",cats:["orthodox"]});
+  if(Y>=1942) add(E(8,27),{id:"patriots",name:"የአርበኞች (የድል) ቀን",cats:["national"]});
+  add(E(9,1),{id:"lideta",name:"ልደታ ለማርያም",cats:["orthodox"]});
+  if(Y>=1992) add(E(9,20),{id:"derg",name:"ደርግ የወደቀበት ቀን (ግንቦት 20)",cats:["national"]});
+  add(E(10,12),{id:"senemikael",name:"ሰኔ ሚካኤል",cats:["orthodox"]});
+  add(E(11,5),{id:"petrospawlos",name:"ጴጥሮስ ወጳውሎስ",cats:["orthodox"]});
+  add(E(11,19),{id:"hamlegabriel",name:"ሐምሌ ገብርኤል",cats:["orthodox"]});
+  add(E(12,7),{id:"tsinsetamariam",name:"ጽንሰታ ለማርያም",cats:["orthodox"]});
+  add(E(12,13),{id:"debretabor",name:"ደብረ ታቦር (ቡሄ)",cats:["orthodox"],rank:"major"});
+  add(E(12,16),{id:"filsetafeast",name:"ፍልሰታ ለማርያም (ዕርገተ ማርያም)",cats:["orthodox"]});
+  add(E(12,24),{id:"teklehaymanot",name:"አቡነ ተክለ ሃይማኖት",cats:["orthodox"]});
+  add(E(13,3),{id:"pagumerufael",name:"ቅዱስ ሩፋኤል (ጳጉሜን 3)",cats:["orthodox"]});
+  /* annual feasts and saints' days listed by Mahibere Kidusan (eotcmk.org) */
+  add(E(1,21),{id:"gishen",name:"ግሸን ደብረ ከርቤ (መስቀሉ ያረፈበት)",cats:["orthodox"]});
+  add(E(2,12),{id:"matewos",name:"ቅዱስ ማቴዎስ ሐዋርያ",cats:["orthodox"]});
+  add(E(2,14),{id:"gebrekristos",name:"ቅዱስ ገብረ ክርስቶስ",cats:["orthodox"]});
+  add(E(2,20),{id:"yohanneshatsir",name:"ቅዱስ ዮሐንስ ሐጺር",cats:["orthodox"]});
+  add(E(2,25),{id:"abib",name:"አቡነ አቢብ (ቡላ)",cats:["orthodox"]});
+  add(E(4,1),{id:"eliasbirth",name:"ልደተ ኤልያስ ነቢይ",cats:["orthodox"]});
+  add(E(4,7),{id:"sibket",name:"ዘመነ ስብከት (ስብከት)",cats:["orthodox"],rank:"minor"});
+  add(E(4,14),{id:"birhan",name:"ብርሃን",cats:["orthodox"],rank:"minor"});
+  add(E(4,21),{id:"nolawi",name:"ኖላዊ",cats:["orthodox"],rank:"minor"});
+  add(E(4,24),{id:"teklebirth",name:"ልደተ አቡነ ተክለ ሃይማኖት",cats:["orthodox"]});
+  add(E(5,1),{id:"estifanos",name:"ቅዱስ እስጢፋኖስ ቀዳሜ ሰማዕት",cats:["orthodox"]});
+  add(E(5,6),{id:"gizret",name:"ግዝረት (በዓለ ግዝረት)",cats:["orthodox"],rank:"minor"});
+  add(E(5,7),{id:"tirselassie",name:"ቅድስት ሥላሴ (ጥር 7)",cats:["orthodox"]});
+  add(E(5,15),{id:"kirkostir",name:"ቅዱስ ቂርቆስና ቅድስት ኢየሉጣ",cats:["orthodox"]});
+  add(E(5,18),{id:"tirgiorgis",name:"ቅዱስ ጊዮርጊስ (ጥር 18)",cats:["orthodox"]});
+  add(E(5,22),{id:"uriel",name:"ቅዱስ ዑራኤል (በዓለ ሲመት)",cats:["orthodox"]});
+  add(E(5,23),{id:"timotewos",name:"ቅዱስ ጢሞቴዎስ ሐዋርያ",cats:["orthodox"]});
+  add(E(5,28),{id:"feeding",name:"አምስት ሺህ ሰዎችን የመገበበት",cats:["orthodox"]});
+  add(E(6,8),{id:"simeon",name:"ልደተ ስምዖን (በዓለ ስምዖን)",cats:["orthodox"],rank:"minor"});
+  add(E(7,10),{id:"meskelmegabit",name:"መስቀል (የተገኘበት፣ መጋቢት 10)",cats:["orthodox"],rank:"minor"});
+  add(E(8,5),{id:"yaredbirth",name:"ልደተ ቅዱስ ያሬድ",cats:["orthodox"]});
+  add(E(9,6),{id:"makaryos",name:"አባ መቃርስ (ዕረፍት)",cats:["orthodox"]});
+  add(E(9,11),{id:"yared",name:"ቅዱስ ያሬድ",cats:["orthodox"]});
+  add(E(9,12),{id:"afewerk",name:"ቅዱስ ዮሐንስ አፈወርቅ",cats:["orthodox"]});
+  add(E(11,7),{id:"hamleselassie",name:"ሐምሌ ሥላሴ",cats:["orthodox"]});
+  add(E(11,7),{id:"giorgisgasicha",name:"አባ ጊዮርጊስ ዘጋስጫ",cats:["orthodox"]});
+  add(E(11,8),{id:"kiros",name:"አባ ኪሮስ",cats:["orthodox"]});
+  add(E(11,15),{id:"efrem",name:"ቅዱስ ኤፍሬም ሶርያዊ",cats:["orthodox"]});
+  add(E(12,19),{id:"makaryosrelics",name:"ፍልሰተ አጽሙ ለአባ መቃርስ",cats:["orthodox"]});
+  /* church seasons */
+  [["seasonmetsew","ዘመነ መጸው (መከር)",1],["seasonhagay","ዘመነ ሐጋይ (በጋ)",4],["seasontsedey","ዘመነ ጸደይ (በልግ)",7],["seasonkiremt","ዘመነ ክረምት",10]].forEach(function(r){
+    add(E(r[2],26),{id:r[0],name:r[1]+" ይጀምራል",cats:["season"]});});
+  /* voluntary fasts */
+  var tsS=E(1,26), tsE=E(3,6);
+  add(tsS,{id:"tsige",name:"የጽጌ ጾም (መጀመሪያ)",cats:["voluntary"],range:[tsS,tsE]});
+  add(tsE,{id:"tsige",name:"የጽጌ ጾም (ፍጻሜ)",cats:["voluntary"],range:[tsS,tsE]});
+  addSpan({id:"tsige",name:"የጽጌ ጾም",cats:["voluntary"],range:[tsS,tsE]});
+  var pgE=E(13,etLeap(EY)?6:5);
+  add(E(13,1),{id:"yodit",name:"ጾመ ዮዲት (መጀመሪያ)",cats:["voluntary"],range:[E(13,1),pgE]});
+  add(pgE,{id:"yodit",name:"ጾመ ዮዲት (ፍጻሜ)",cats:["voluntary"],range:[E(13,1),pgE]});
+  addSpan({id:"yodit",name:"ጾመ ዮዲት",cats:["voluntary"],range:[E(13,1),pgE]});
+  if(Y>=1975) add(g2j(Y,5,1),{id:"labour",name:"የዓለም የሠራተኞች ቀን",cats:["national"]});
+  /* fixed fasts */
+  add(E(3,15),{id:"nebiyat",name:"ጾመ ነቢያት (መጀመሪያ)",cats:["fast"],range:[E(3,15),gena-1]});
+  add(gena-1,{id:"nebiyat",name:"ጾመ ነቢያት (ፍጻሜ)",cats:["fast"],range:[E(3,15),gena-1]});
+  addSpan({id:"nebiyat",name:"ጾመ ነቢያት",cats:["fast"],range:[E(3,15),gena-1]});
+  add(gena-1,{id:"gahad",name:"ጾመ ገሃድ (የገና ዋዜማ)",cats:["fast"]});
+  add(E(5,10),{id:"gahad",name:"ጾመ ገሃድ (የጥምቀት ዋዜማ)",cats:["fast"]});
+  add(E(12,1),{id:"filseta",name:"ጾመ ፍልሰታ (መጀመሪያ)",cats:["fast"],range:[E(12,1),E(12,15)]});
+  add(E(12,15),{id:"filseta",name:"ጾመ ፍልሰታ (ፍጻሜ)",cats:["fast"],range:[E(12,1),E(12,15)]});
+  addSpan({id:"filseta",name:"ጾመ ፍልሰታ",cats:["fast"],range:[E(12,1),E(12,15)]});
+  addSpan({id:"nenewe",name:"ጾመ ነነዌ",cats:["fast"],range:[ethEaster(Y)-69,ethEaster(Y)-67]});
+  addSpan({id:"abiy",name:"ዐቢይ ጾም",cats:["fast"],range:[ethEaster(Y)-55,ethEaster(Y)-1]});
+  /* movable (Bahire Hasab); off = days from Fasika */
+  var P = ethEaster(Y);
+  var M = function(off,o){o.off=off;add(P+off,o);};
+  M(-69,{id:"nenewe",name:"ጾመ ነነዌ (መጀመሪያ)",cats:["fast"],range:[P-69,P-67]});
+  M(-67,{id:"nenewe",name:"ጾመ ነነዌ (ፍጻሜ)",cats:["fast"],range:[P-69,P-67]});
+  M(-56,{id:"zewerede",name:"ዘወረደ (1ኛ የዐቢይ ጾም እሑድ)",cats:["movable"]});
+  M(-55,{id:"abiy",name:"ዐቢይ ጾም (መጀመሪያ)",cats:["fast"],range:[P-55,P-1]});
+  M(-49,{id:"kidist",name:"ቅድስት (2ኛ እሑድ)",cats:["movable"]});
+  M(-42,{id:"mekurab",name:"ምኩራብ (3ኛ እሑድ)",cats:["movable"]});
+  M(-35,{id:"metsagu",name:"መጻጉዕ (4ኛ እሑድ)",cats:["movable"]});
+  M(-28,{id:"debrezeit",name:"ደብረ ዘይት (5ኛ እሑድ)",cats:["movable"],rank:"minor"});
+  M(-21,{id:"gebreher",name:"ገብር ኄር (6ኛ እሑድ)",cats:["movable"]});
+  M(-14,{id:"nikodimos",name:"ኒቆዲሞስ (7ኛ እሑድ)",cats:["movable"]});
+  M(-7,{id:"hosana",name:"ሆሣዕና (8ኛ እሑድ)",cats:["movable"],rank:"major"});
+  M(-6,{id:"hemamat",name:"ሰሙነ ሕማማት (መጀመሪያ)",cats:["movable"]});
+  M(-3,{id:"tselote",name:"ጸሎተ ሐሙስ",cats:["movable"]});
+  M(-2,{id:"siklet",name:"ስቅለት (ዓርብ ስቅለት)",cats:["national"],rank:"major"});
+  M(-1,{id:"kedame",name:"ቀዳም ሥዑር",cats:["movable"]});
+  M(-1,{id:"abiy",name:"ዐቢይ ጾም (ፍጻሜ)",cats:["fast"],range:[P-55,P-1]});
+  M(0,{id:"fasika",name:"ፋሲካ (ትንሣኤ)",cats:["national"],rank:"major"});
+  M(24,{id:"rikbe",name:"ርክበ ካህናት",cats:["movable"]});
+  M(39,{id:"erget",name:"ዕርገት",cats:["movable"],rank:"major"});
+  M(49,{id:"paraklitos",name:"ጰራቅሊጦስ",cats:["movable"],rank:"major"});
+  var hEnd=E(11,4);
+  M(50,{id:"hawariat",name:"ጾመ ሐዋርያት (መጀመሪያ)",cats:["fast"],range:[P+50,hEnd]});
+  add(hEnd,{id:"hawariat",name:"ጾመ ሐዋርያት (ፍጻሜ)",cats:["fast"],range:[P+50,hEnd]});
+  addSpan({id:"hawariat",name:"ጾመ ሐዋርያት",cats:["fast"],range:[P+50,hEnd]});
+  /* monthly commemorations: 12 months of 30 days (none in Pagume) */
+  for(var m=1;m<=12;m++)for(var d=1;d<=30;d++) add(E(m,d),{id:"monthly"+d,name:MONTHLY[d][0],cats:["monthly"],day:d});
+  /* Islamic */
+  var conf=ISLAMIC_CONFIRMED[Y], nat=Y>=1975;
+  [["eidfitr","ዒድ አል ፈጥር",10,1],["eidadha","ዒድ አል አድሐ (አረፋ)",12,10],["mawlid","መውሊድ",3,12]].forEach(function(r){
+    var id=r[0],name=r[1],hm=r[2],hd=r[3];
+    if(conf){var c=conf[id];add(g2j(c[0],c[1],c[2]),{id:id,name:name,cats:[nat?"national":"global"],islamic:"confirmed"});return;}
+    var H0=Math.floor((Y-622)*33/32);
+    for(var H=H0-1;H<=H0+2;H++){var j=hijri2j(H,hm,hd);if(j2g(j).y===Y)add(j,{id:id,name:name,cats:[nat?"national":"global"],islamic:"tabular",hijri:H});}
+  });
+  /* United States */
+  var fixedFed=function(m,d,id,name,cats,since){if(Y<since)return;var j=g2j(Y,m,d);add(j,{id:id,name:name,cats:cats});
+    var w=dowIdx(j);if(Y>=1971||id==="newyear"){if(w===5)add(j-1,{id:"observed",name:name+" (observed)",cats:["us"],ref:id});if(w===6)add(j+1,{id:"observed",name:name+" (observed)",cats:["us"],ref:id});}};
+  fixedFed(1,1,"newyear","New Year's Day",["us","global"],1870);
+  if(Y>=1986) add(nthWd(Y,1,0,3),{id:"mlk",name:"Martin Luther King Jr. Day",cats:["us"]});
+  add(Y>=1971?nthWd(Y,2,0,3):g2j(Y,2,22),{id:"washington",name:"Washington's Birthday (Presidents' Day)",cats:["us"]});
+  add(Y>=1971?nthWd(Y,5,0,-1):g2j(Y,5,30),{id:"memorial",name:"Memorial Day",cats:["us"]});
+  fixedFed(6,19,"juneteenth","Juneteenth National Independence Day",["us"],2021);
+  fixedFed(7,4,"independence","Independence Day",["us"],1870);
+  add(nthWd(Y,9,0,1),{id:"labor",name:"Labor Day",cats:["us"]});
+  if(Y>=1971) add(nthWd(Y,10,0,2),{id:"columbus",name:"Columbus Day / Indigenous Peoples' Day",cats:["us"]});
+  else if(Y>=1937) add(g2j(Y,10,12),{id:"columbus",name:"Columbus Day",cats:["us"]});
+  if(Y>=1971&&Y<=1977) add(nthWd(Y,10,0,4),{id:"veterans",name:"Veterans Day",cats:["us"]});
+  else fixedFed(11,11,"veterans",Y>=1954?"Veterans Day":"Armistice Day",["us"],1938);
+  var tg = Y>=1942?nthWd(Y,11,3,4):nthWd(Y,11,3,-1);
+  add(tg,{id:"thanksgiving",name:"Thanksgiving Day",cats:["us"]});
+  fixedFed(12,25,"christmas","Christmas Day",["us","global"],1870);
+  add(g2j(Y,2,2),{id:"groundhog",name:"Groundhog Day",cats:["usobs"]});
+  add(g2j(Y,2,14),{id:"valentine",name:"Valentine's Day",cats:["usobs"]});
+  add(g2j(Y,3,17),{id:"patrick",name:"St. Patrick's Day",cats:["usobs"]});
+  if(Y>=1914) add(nthWd(Y,5,6,2),{id:"mothers",name:"Mother's Day",cats:["usobs"]});
+  if(Y>=1916) add(g2j(Y,6,14),{id:"flag",name:"Flag Day",cats:["usobs"]});
+  if(Y>=1910) add(nthWd(Y,6,6,3),{id:"fathers",name:"Father's Day",cats:["usobs"]});
+  add(g2j(Y,10,31),{id:"halloween",name:"Halloween",cats:["usobs"]});
+  if(Y%2===0) add(nthWd(Y,11,0,1)+1,{id:"election",name:"Election Day",cats:["usobs"]});
+  add(tg+1,{id:"blackfriday",name:"Black Friday",cats:["usobs"]});
+  add(g2j(Y,12,24),{id:"xmaseve",name:"Christmas Eve",cats:["usobs"]});
+  add(g2j(Y,12,31),{id:"nyeve",name:"New Year's Eve",cats:["usobs"]});
+  /* Global */
+  var W=westEaster(Y);
+  add(W-2,{id:"westgoodfriday",name:"Good Friday (Western)",cats:["global"]});
+  add(W,{id:"westeaster",name:"Easter Sunday (Western)",cats:["global"]});
+  [[1,24,"education","International Day of Education",2019],[1,27,"holocaust","International Holocaust Remembrance Day",2006],
+   [2,21,"motherlang","International Mother Language Day",2000],[3,3,"wildlife","World Wildlife Day",2014],[3,8,"women","International Women's Day",1911],
+   [3,20,"happiness","International Day of Happiness",2013],[3,21,"racism","International Day for the Elimination of Racial Discrimination",1966],
+   [3,22,"water","World Water Day",1993],[3,24,"tb","World Tuberculosis Day",1982],[4,7,"health","World Health Day",1950],[4,22,"earth","Earth Day",1970],
+   [4,25,"malaria","World Malaria Day",2008],[5,3,"press","World Press Freedom Day",1993],[5,25,"africa","Africa Day",1963],[5,31,"tobacco","World No Tobacco Day",1988],
+   [6,5,"environment","World Environment Day",1974],[6,20,"refugee","World Refugee Day",2001],[7,11,"population","World Population Day",1989],
+   [7,18,"mandela","Nelson Mandela International Day",2010],[8,12,"youth","International Youth Day",2000],[8,19,"humanitarian","World Humanitarian Day",2009],
+   [9,8,"literacy","International Literacy Day",1967],[9,21,"peace","International Day of Peace",1982],[9,27,"tourism","World Tourism Day",1980],
+   [10,2,"nonviolence","International Day of Non-Violence",2007],[10,5,"teachers","World Teachers' Day",1994],[10,10,"mentalhealth","World Mental Health Day",1992],
+   [10,16,"food","World Food Day",1981],[10,24,"unday","United Nations Day",1948],[11,20,"children","World Children's Day",1954],
+   [11,25,"vaw","International Day for the Elimination of Violence against Women",1999],[12,1,"aids","World AIDS Day",1988],
+   [12,3,"disabilities","International Day of Persons with Disabilities",1992],[12,10,"humanrights","Human Rights Day",1950],[12,18,"migrants","International Migrants Day",2000]
+  ].forEach(function(r){if(Y>=r[4])add(g2j(Y,r[0],r[1]),{id:r[2],name:r[3],cats:["global"]});});
+}
+function wedFriEntry(j){
+  var w=dowIdx(j); if(w!==2&&w!==4)return null;
+  var g=j2g(j),e=j2e(j),P=ethEaster(g.y);
+  if(j>=P&&j<=P+49)return null; // the fifty days after Fasika
+  if(j===jul2j(g.y-1,12,25)||j===e2j(e.y,5,11))return null; // Ge'na or Timket is a feast, not a fast
+  return {id:"wedfri",name:w===2?"ጾመ ድኅነት (ረቡዕ)":"ጾመ ድኅነት (ዓርብ)",cats:["wedfri"],jdn:j,daily:true};
+}
+function spansOn(j){return SPANS.filter(function(s){return j>=s.range[0]&&j<=s.range[1];});}
+/* Everything on one day, including every day of a fast and the weekly fast */
+function getDay(j){var g=j2g(j);buildYear(g.y);buildYear(g.y+1);buildYear(g.y-1);
+  var list=(HOL.get(j)||[]).slice();
+  spansOn(j).forEach(function(sp){ if(!list.some(function(x){return x.id===sp.id&&x.range&&x.range[0]===sp.range[0];}))
+    list.push({id:sp.id,name:sp.name+" (ቀን "+(j-sp.range[0]+1)+" ከ"+(sp.range[1]-sp.range[0]+1)+")",cats:sp.cats,range:sp.range,jdn:j,daily:true});});
+  var wf=wedFriEntry(j); if(wf)list.push(wf);
+  return list;}
+function sortEntries(a){return a.sort(function(x,y){return x.jdn-y.jdn||CAT_ORDER.indexOf(x.cats[0])-CAT_ORDER.indexOf(y.cats[0]);});}
+/* Entries for the Holiday Details list of one Gregorian month (no daily repeats) */
+function monthEntries(y,m,includeMonthly){var f=g2j(y,m,1),n=daysInGMonth(y,m),last=f+n-1,all=[],wf=[];
+  for(var j=f;j<=last;j++){getDay(j).forEach(function(e){
+    if(e.id==="wedfri"){wf.push(j);return;}
+    if(e.daily)return;
+    if(!includeMonthly&&e.cats[0]==="monthly")return;
+    all.push(e);});}
+  var seen={};
+  SPANS.forEach(function(sp){var k=sp.id+sp.range[0];if(seen[k])return;seen[k]=1;
+    if(sp.range[1]<f||sp.range[0]>last)return;
+    if((sp.range[0]>=f&&sp.range[0]<=last)||(sp.range[1]>=f&&sp.range[1]<=last))return;
+    all.push({id:sp.id,name:sp.name+" (ይቀጥላል)",cats:sp.cats,range:sp.range,jdn:f,cont:true});});
+  var firstWF=f; while(dowIdx(firstWF)!==2&&dowIdx(firstWF)!==4)firstWF++;
+  all.push({id:"wedfri",name:wf.length?"ረቡዕ እና ዓርብ (ጾመ ድኅነት)":"ረቡዕ እና ዓርብ (በዚህ ወር አይጾሙም)",cats:["wedfri"],jdn:wf.length?wf[0]:firstWF,days:wf,summary:true,month:[y,m]});
+  return sortEntries(all);}
+function ethSpan(y,m){var first=g2j(y,m,1),last=first+daysInGMonth(y,m)-1,groups=[],cur=null;
+  for(var j=first;j<=last;j++){var e=j2e(j);if(!cur||cur.y!==e.y){cur={y:e.y,ms:[]};groups.push(cur);}if(cur.ms.indexOf(e.m)<0)cur.ms.push(e.m);}
+  return groups.map(function(g){return g.ms.map(function(x){return ET_MONTHS[x-1];}).join(" / ")+" "+g.y;}).join(" · ");}
+function offText(off){if(off===0)return "Fasika";return Math.abs(off)+" days "+(off<0?"before":"after")+" Fasika";}
+/* Seasons (ዘመናት) */
+var SEASONS=[
+ {id:"seasonmetsew",am:"ዘመነ መጸው (መከር)",en:"Harvest season",sm:1,em:4,harvest:"main",
+  tip:"Main harvest (መኸር): crops sown in the ክረምት rains, such as teff, wheat and barley, ripen and are harvested, mostly in ኅዳር and ታኅሣሥ."},
+ {id:"seasonhagay",am:"ዘመነ ሐጋይ (በጋ)",en:"Dry season",sm:4,em:7,harvest:"after",
+  tip:"Dry season. Threshing and storing the main harvest often continues into the start of this season."},
+ {id:"seasontsedey",am:"ዘመነ ጸደይ (በልግ)",en:"Spring / small rains",sm:7,em:10,harvest:"secondary",
+  tip:"Secondary harvest (በልግ): in areas that get the በልግ rains, a smaller harvest is collected around the end of this season (ሰኔ), in some areas continuing into ሐምሌ."},
+ {id:"seasonkiremt",am:"ዘመነ ክረምት (ክረምት)",en:"Main rainy season",sm:10,em:1,harvest:"none",
+  tip:"No harvest: the main rainy season of ploughing, sowing, weeding and growing."}];
+function seasonRange(s,ey){var a=e2j(ey,s.sm,26),b=s.em===1?e2j(ey+1,1,25):e2j(ey,s.em,25);return [a,b];}
+function seasonOf(j){var e=j2e(j);for(var k=0;k<4;k++){var s=SEASONS[k];
+  var ey=(s.em===1&&(e.m<1||(e.m===1&&e.d<=25)))?e.y-1:e.y;var r=seasonRange(s,ey);if(j>=r[0]&&j<=r[1])return {season:s,ey:ey,range:r};}
+  return null;}
+var RANK_NOTE={major:"One of the nine major feasts of the Lord (ዐበይት በዓላት).",minor:"One of the nine minor feasts of the Lord (ንዑሳን በዓላት)."};
+/* Full description text for an entry (story + computed facts) */
+function describe(e){
+  var desc = e.cats[0]==="monthly" ? MONTHLY[e.day][1] : (D[e.id]||"");
+  var notes=[];
+  if(e.rank)notes.push(RANK_NOTE[e.rank]);
+  if(e.cont)notes.push("Continues through this month.");
+  if(e.range) notes.push((e.cats[0]==="voluntary"?"Voluntary fast period: ":"Fast period: ")+fmtG(e.range[0])+" ("+fmtEs(e.range[0])+") to "+fmtG(e.range[1])+" ("+fmtEs(e.range[1])+"), "+(e.range[1]-e.range[0]+1)+" days.");
+  if(e.summary){if(e.days.length)notes.push("Fasting days this month: "+e.days.map(function(j){return DOW_EN[dowIdx(j)]+" "+fmtGs(j);}).join(", ")+" ("+e.days.length+" days).");else notes.push("No Wednesday or Friday is fasted this month.");
+    var y=e.month[0],m=e.month[1],f=g2j(y,m,1),l=f+daysInGMonth(y,m)-1,skipped=[];
+    for(var j=f;j<=l;j++){var w=dowIdx(j);if((w===2||w===4)&&e.days.indexOf(j)<0)skipped.push(DOW_EN[w]+" "+fmtGs(j));}
+    if(skipped.length)notes.push("Not fasted this month (fifty days after Fasika, or Ge'na / Timket): "+skipped.join(", ")+".");}
+  if((e.id==="gena"||e.id==="timket")&&(dowIdx(e.jdn)===2||dowIdx(e.jdn)===4)) notes.push("This year it falls on a "+DOW_FULL[dowIdx(e.jdn)]+", so the usual Wednesday/Friday fast is not kept on the feast; ጾመ ገሀድ is kept on the eve.");
+  if(typeof e.off==="number") notes.push("Movable date (Bahire Hasab): "+offText(e.off)+", which this year is "+fmtG(ethEaster(j2g(e.jdn).y))+".");
+  if(e.islamic==="confirmed") notes.push("Officially observed date in Ethiopia for this year.");
+  if(e.islamic==="tabular") notes.push("Calculated with the tabular Hijri calendar ("+e.hijri+" AH). The actual date depends on moon sighting and the announcement of the Ethiopian Islamic Affairs Supreme Council, and may differ by one or two days.");
+  if(e.cats[0]==="monthly") notes.push("Kept on day "+e.day+" of every Ethiopian month (not in Pagume).");
+  return {desc:desc,notes:notes};
+}
+if(typeof module!=="undefined")module.exports={g2j:g2j,jul2j:jul2j,j2g:j2g,e2j:e2j,j2e:j2e,etLeap:etLeap,dowIdx:dowIdx,daysInGMonth:daysInGMonth,ethEaster:ethEaster,westEaster:westEaster,
+  fmtG:fmtG,fmtE:fmtE,SEASONS:SEASONS,seasonRange:seasonRange,seasonOf:seasonOf,wedFriEntry:wedFriEntry,SPANS:SPANS,fmtGs:fmtGs,fmtEs:fmtEs,getDay:getDay,monthEntries:monthEntries,ethSpan:ethSpan,describe:describe,D:D,MONTHLY:MONTHLY,CATS:CATS,CAT_ORDER:CAT_ORDER,ET_MONTHS:ET_MONTHS};
+
+</script>
+<script>
+"use strict";
+const state={y:0,m:0,sel:0,today:0};
+const $=id=>document.getElementById(id);
+function todayJdn(){const n=new Date();return g2j(n.getFullYear(),n.getMonth()+1,n.getDate());}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+function catLabel(e){return e.cats[0]==="monthly"?"Monthly Commemoration · day "+e.day:e.cats.map(c=>CATS[c].label).join(" + ");}
+let MONTH_LIST=[];
+const WHEAT='<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 15V5" stroke="currentColor" stroke-width="1.6" fill="none"/><g fill="currentColor"><ellipse cx="8" cy="3" rx="1.6" ry="2.4"/><ellipse cx="5.6" cy="6" rx="1.4" ry="2.2" transform="rotate(-35 5.6 6)"/><ellipse cx="10.4" cy="6" rx="1.4" ry="2.2" transform="rotate(35 10.4 6)"/><ellipse cx="5.6" cy="9.4" rx="1.4" ry="2.2" transform="rotate(-35 5.6 9.4)"/><ellipse cx="10.4" cy="9.4" rx="1.4" ry="2.2" transform="rotate(35 10.4 9.4)"/></g></svg>';
+function seasonsShown(){return j2e(state.sel).y;}
+function renderSeasons(){
+  const ey=seasonsShown(),todayS=seasonOf(state.today);
+  $("seasonsTitle").textContent="Seasons (ዘመናት) of "+ey+" E.C.";
+  $("seasonsToday").textContent=todayS?"Today: "+todayS.season.am:"";
+  $("seasons").innerHTML=SEASONS.map((s,i)=>{const r=seasonRange(s,ey),cur=state.today>=r[0]&&state.today<=r[1];
+    let badges="";
+    if(s.harvest==="main")badges+='<span class="badge main">'+WHEAT+'Main harvest (መኸር)</span>';
+    else if(s.harvest==="secondary")badges+='<span class="badge sec">'+WHEAT+'Secondary harvest (በልግ)</span>';
+    else if(s.harvest==="after")badges+='<span class="badge note">Threshing and storing continue</span>';
+    else badges+='<span class="badge note">No harvest: rain and planting</span>';
+    if(cur)badges+='<span class="badge cur">Current season</span>';
+    const tip=s.tip+" Click to show the start date ("+fmtE(r[0])+") in the calendar.";
+    return '<button type="button" class="season'+(cur?' cur':'')+'" data-s="'+i+'" title="'+esc(tip)+'" aria-label="'+esc(s.am+", "+s.en+", "+fmtE(r[0])+" to "+fmtE(r[1])+". "+s.tip)+'">'+
+      '<span class="sn">'+esc(s.am)+'</span><span class="se">'+esc(s.en)+'</span>'+
+      '<span class="sr">'+esc(fmtEs(r[0])+" to "+fmtE(r[1]))+'</span><span>'+esc(fmtGs(r[0])+", "+j2g(r[0]).y+" to "+fmtG(r[1]))+'</span>'+
+      '<span class="badges">'+badges+'</span></button>';}).join("");
+  $("seasons").querySelectorAll(".season").forEach(b=>b.addEventListener("click",()=>{const r=seasonRange(SEASONS[+b.dataset.s],ey);showInCalendar(r[0]);}));
+}
+function renderGrid(){
+  const {y,m}=state,first=g2j(y,m,1),n=daysInGMonth(y,m);
+  const seas=[];for(let j=first;j<first+n;j++){const so=seasonOf(j);if(so&&seas.indexOf(so.season.am)<0)seas.push(so.season.am);}
+  $("monthTitle").innerHTML=esc(G_MONTHS[m-1]+" "+y)+"<small>"+esc(ethSpan(y,m))+"</small><span class=\"sea\">"+esc(seas.join(" / "))+"</span>";
+  const grid=$("daysGrid");grid.innerHTML="";const lead=dowIdx(first);
+  for(let i=0;i<lead;i++)grid.appendChild(Object.assign(document.createElement("div"),{className:"day empty"}));
+  for(let d=1;d<=n;d++){
+    const j=first+d-1,e=j2e(j),list=getDay(j),b=document.createElement("button");b.type="button";b.className="day";b.dataset.j=j;
+    if(list.some(x=>x.cats.includes("national")))b.classList.add("nat");else if(e.m===13)b.classList.add("pag");
+    if(dowIdx(j)>4)b.classList.add("we");
+    if(j===state.today)b.classList.add("today"); if(j===state.sel){b.classList.add("sel");b.setAttribute("aria-current","date");}
+    const cats=[...new Set(list.flatMap(x=>x.cats))].filter(c=>c!=="monthly"&&c!=="national").sort((a,b)=>CAT_ORDER.indexOf(a)-CAT_ORDER.indexOf(b)).slice(0,6);
+    b.innerHTML='<span class="e">'+e.d+'</span><span class="g">'+d+'</span><span class="dots">'+cats.map(c=>'<i style="background:'+CATS[c].color+'"></i>').join("")+'</span>';
+    const names=list.filter(x=>x.cats[0]!=="monthly").map(x=>x.name);
+    b.setAttribute("aria-label",fmtG(j)+", "+fmtE(j)+(names.length?", "+names.join(", "):""));
+    b.addEventListener("click",()=>select(j));grid.appendChild(b);
+  }
+  const trail=(7-(lead+n)%7)%7;for(let i=0;i<trail;i++)grid.appendChild(Object.assign(document.createElement("div"),{className:"day empty"}));
+  renderDetails();renderSeasons();
+}
+function renderDetails(){
+  MONTH_LIST=monthEntries(state.y,state.m,true);
+  $("detCount").textContent=MONTH_LIST.length+" entries";
+  $("details").innerHTML=MONTH_LIST.map((e,i)=>{const info=describe(e),col=CATS[e.cats[0]].color,notes=info.notes.filter(n=>!/^Kept on day/.test(n));
+    return '<article class="ent'+(e.jdn===state.sel?' hl':'')+'" id="ent'+i+'" style="border-left-color:'+col+'">'+
+      '<button type="button" class="entlink" data-i="'+i+'" title="Show in calendar" aria-label="Show '+esc(e.name)+', '+esc(fmtG(e.jdn))+', in calendar">'+
+      '<span class="when"><span>'+DOW_EN[dowIdx(e.jdn)]+", "+esc(fmtG(e.jdn))+" · "+esc(fmtE(e.jdn))+'</span><span class="cat" style="color:'+col+'">'+esc(catLabel(e))+'</span></span>'+
+      '<span class="nm" style="display:block">'+esc(e.name)+'</span></button>'+
+      '<div class="ds">'+esc(info.desc)+'</div>'+notes.map(t=>'<div class="nt">'+esc(t)+'</div>').join("")+'</article>';}).join("");
+  $("details").querySelectorAll(".entlink").forEach(b=>b.addEventListener("click",()=>showInCalendar(MONTH_LIST[+b.dataset.i].jdn)));
+}
+/* Scroll to the calendar, switch month if needed, and pulse the day */
+function showInCalendar(j){
+  select(j);
+  const card=$("calCard"),cell=document.querySelector('.day[data-j="'+j+'"]');
+  let top=card.getBoundingClientRect().top+scrollY-6;
+  if(cell){const cb=cell.getBoundingClientRect().bottom+scrollY;if(cb-top>innerHeight-12)top=cb-innerHeight+16;}
+  scrollTo({top:Math.max(0,top),behavior:"smooth"});
+  if(cell){cell.classList.remove("pulse");void cell.offsetWidth;cell.classList.add("pulse");setTimeout(()=>cell.classList.remove("pulse"),2100);}
+}
+function detailIndexFor(e){
+  if(e.daily&&e.id==="wedfri")return MONTH_LIST.findIndex(x=>x.summary);
+  if(e.daily)return MONTH_LIST.findIndex(x=>x.id===e.id&&x.range&&x.range[0]===e.range[0]);
+  return MONTH_LIST.indexOf(e);
+}
+function renderSelected(){
+  const j=state.sel,w=dowIdx(j);
+  $("selectedDay").innerHTML='<div class="big">'+esc(fmtG(j))+' (Gregorian)</div><div class="sub">'+esc(fmtE(j))+' (Ethiopian)</div><div class="wd">'+DOW_FULL[w]+' · '+DOW_AM[w]+(j===state.today?' · Today':'')+'</div>';
+  const list=sortEntries(getDay(j)),box=$("dayHolidays");
+  if(!list.length){box.innerHTML='<div class="empty-note">No holidays or commemorations on this day.</div>';return;}
+  let h="";for(const c of CAT_ORDER){const g=list.filter(e=>e.cats[0]===c);if(!g.length)continue;
+    h+='<div class="grp"><h3>'+esc(CATS[c].label)+'</h3>'+g.map(e=>'<button type="button" class="item" data-k="'+detailIndexFor(e)+'"><i style="background:'+CATS[c].color+'"></i>'+esc(e.name)+'</button>').join("")+'</div>';}
+  box.innerHTML=h;
+  box.querySelectorAll(".item").forEach(b=>b.addEventListener("click",()=>{const t=$("ent"+b.dataset.k);if(!t)return;
+    document.querySelectorAll(".ent.flash").forEach(x=>x.classList.remove("flash"));t.classList.add("flash");t.scrollIntoView({behavior:"smooth",block:"start"});}));
+}
+/* ---------- navigation ---------- */
+const MIN_J=g2j(1900,1,1), MAX_J=g2j(2100,12,31);   // supported range
+/* Select a day: re-renders grid, details, seasons, panels and the nav label */
+function select(j){j=Math.max(MIN_J,Math.min(MAX_J,j));const g=j2g(j);state.sel=j;state.y=g.y;state.m=g.m;renderGrid();renderSelected();renderNavLabel();}
+/* Move by months and/or years from the selected day.
+   Rolls over month and year boundaries and clamps the day to the target
+   month's length (Jan 31 + 1 month = Feb 28 or 29; Feb 29 + 1 year = Feb 28). */
+function go(dy,dm){const cur=j2g(state.sel);let total=(cur.y+dy)*12+(cur.m-1)+dm,y=Math.floor(total/12),m=total%12+1;
+  if(y<1900){y=1900;m=1;}if(y>2100){y=2100;m=12;}
+  const d=Math.min(cur.d,daysInGMonth(y,m));select(g2j(y,m,d));}
+/* Move by days (Julian Day Number arithmetic handles every rollover) */
+function stepDay(n){select(state.sel+n);}
+function renderNavLabel(){const j=state.sel,w=dowIdx(j);
+  $("navLabel").innerHTML='<span class="lg">'+DOW_FULL[w].slice(0,3)+", "+esc(fmtG(j))+'</span><span class="le">'+esc(fmtE(j))+'</span>';}
+/* Keyboard: Left/Right = day, Shift = month, Ctrl (or Cmd) = year, T = today */
+function onKey(ev){
+  const t=ev.target; if(t&&(t.isContentEditable||/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)))return;
+  if(ev.key==="t"||ev.key==="T"){if(!ev.ctrlKey&&!ev.metaKey&&!ev.altKey){goToday();ev.preventDefault();}return;}
+  if(ev.key!=="ArrowLeft"&&ev.key!=="ArrowRight")return;
+  const dir=ev.key==="ArrowLeft"?-1:1;
+  if(ev.ctrlKey||ev.metaKey)go(dir,0); else if(ev.shiftKey)go(0,dir); else stepDay(dir);
+  ev.preventDefault();
+}
+function goToday(){state.today=todayJdn();select(state.today);}
+function init(){
+  $("dowRow").innerHTML=DOW_EN.map((d,i)=>'<div class="dow'+(i>4?' we':'')+'">'+d+'</div>').join("");
+  $("legend").innerHTML='<span><i class="sw" style="background:var(--nat);border-color:var(--natDark)"></i>National holiday</span>'+
+   '<span><i class="sw" style="background:var(--pagBg);border:2px dashed var(--pag)"></i>ጳጉሜን</span>'+
+   '<span><i class="sw" style="background:var(--todayBg);border:3px solid var(--today)"></i>Today</span>'+
+   '<span><i class="sw" style="border:3px solid var(--sel)"></i>Selected</span>'+
+   LEGEND_CATS.map(c=>'<span><i class="dt" style="background:'+CATS[c].color+'"></i>'+CATS[c].label+'</span>').join("")+
+   '<span>Green number = Ethiopian day</span>';
+  $("prevYear").onclick=()=>go(-1,0);   $("nextYear").onclick=()=>go(1,0);
+  $("prevMonth").onclick=()=>go(0,-1);  $("nextMonth").onclick=()=>go(0,1);
+  $("prevDay").onclick=()=>stepDay(-1); $("nextDay").onclick=()=>stepDay(1);
+  $("todayBtn").onclick=goToday;
+  document.addEventListener("keydown",onKey);
+  state.today=todayJdn();select(state.today);
+}
+const LEGEND_CATS=["orthodox","movable","fast","voluntary","wedfri","season","us","usobs","global"];
+function selfTest(){
+  const res=[],t=(n,ok,i)=>res.push({n,ok:!!ok,i:i||""}),has=(j,id)=>getDay(j).some(e=>e.id===id);
+  t("Oct 16 2026 = ጥቅምት 6፣ 2019",fmtE(g2j(2026,10,16))==="ጥቅምት 6፣ 2019");
+  t("Sep 11 2026 = መስከረም 1፣ 2019 (እንቁጣጣሽ)",fmtE(g2j(2026,9,11))==="መስከረም 1፣ 2019"&&has(g2j(2026,9,11),"enkutatash"));
+  t("Jan 7 2027 = ገና (ታኅሣሥ 29፣ 2019)",has(g2j(2027,1,7),"gena")&&fmtE(g2j(2027,1,7))==="ታኅሣሥ 29፣ 2019");
+  t("Easter 2026 = Apr 12, 2027 = May 2",ethEaster(2026)===g2j(2026,4,12)&&ethEaster(2027)===g2j(2027,5,2));
+  t("Meskel 2026 = Sep 27",has(g2j(2026,9,27),"meskel"));
+  t("Thanksgiving 2026 = Nov 26",has(g2j(2026,11,26),"thanksgiving"));
+  t("Pagume 6 in 2019 E.C. = Sep 11 2027",fmtE(g2j(2027,9,11))==="ጳጉሜን 6፣ 2019");
+  let rt=true;for(let j=g2j(1900,1,1);j<=g2j(2100,12,31);j++){const e=j2e(j);if(e2j(e.y,e.m,e.d)!==j){rt=false;break;}}
+  t("Round trip 1900 to 2100",rt);
+  { const s0=state.sel, at=(y,m,d)=>{select(g2j(y,m,d));}, is=(y,m,d)=>state.sel===g2j(y,m,d);
+    at(2026,12,31);stepDay(1);const a=is(2027,1,1);
+    at(2027,1,31);go(0,1);const b=is(2027,2,28);
+    at(2028,1,31);go(0,1);const c=is(2028,2,29);
+    at(2028,2,29);go(1,0);const d=is(2029,2,28);
+    at(2026,3,1);stepDay(-1);const e=is(2026,2,28);
+    at(2026,3,31);go(0,-1);const f=is(2026,2,28);
+    at(2026,1,15);go(0,-1);const g=is(2025,12,15);
+    at(2026,10,31);go(0,1);const h=is(2026,11,30);
+    select(s0);
+    t("Navigation rollovers and clamping (Dec 31+1 day, Jan 31+1 month, leap Feb 29+1 year, Mar 31-1 month)",a&&b&&c&&d&&e&&f&&g&&h); }
+  let tsOk=true;for(let j=g2j(2026,10,6);j<=g2j(2026,11,15);j++)if(!has(j,"tsige"))tsOk=false;
+  t("የጽጌ ጾም on every day Oct 6 to Nov 15 2026 (መስከረም 26 to ኅዳር 6)",tsOk&&!has(g2j(2026,10,5),"tsige")&&!has(g2j(2026,11,16),"tsige")&&fmtE(g2j(2026,10,6))==="መስከረም 26፣ 2019");
+  t("ኅዳር 6 shows both ቍስቋም and የጽጌ ጾም",has(g2j(2026,11,15),"kuskuam")&&has(g2j(2026,11,15),"tsige"));
+  t("Wed/Fri fast: kept Oct 7 2026, not in the 50 days (May 5 2027), not on Ge'na Wed Jan 7 2026",has(g2j(2026,10,7),"wedfri")&&!has(g2j(2027,5,5),"wedfri")&&!has(g2j(2026,1,7),"wedfri"));
+  t("Season starts 2019 E.C.: Oct 6, Jan 4, Apr 4, Jul 3",SEASONS.map(s=>seasonRange(s,2019)[0]).join()===[g2j(2026,10,6),g2j(2027,1,4),g2j(2027,4,4),g2j(2027,7,3)].join());
+  let ok=true;try{const s={...state};for(const[y,m]of[[2026,9],[2027,9],[2027,3],[2027,5],[1900,1],[2100,12]]){state.y=y;state.m=m;state.sel=g2j(y,m,1);renderGrid();renderSelected();}Object.assign(state,s);renderGrid();renderSelected();}catch(e){ok=false;console.error(e);}
+  t("Render smoke test",ok);
+  res.forEach(r=>(r.ok?console.log:console.error)((r.ok?"PASS ":"FAIL ")+r.n));
+  console.log("SELFTEST "+res.filter(r=>r.ok).length+"/"+res.length+" passed");
+}
+init();selfTest();
+</script>
+</body>
+</html>
